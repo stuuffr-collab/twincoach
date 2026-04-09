@@ -1,0 +1,181 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum QuestionType {
+  multiple_choice
+  numeric_input
+  expression_choice
+}
+
+enum FeedbackType {
+  correct
+  needs_review
+  try_fix
+  needs_another_check
+}
+
+enum SessionStatus {
+  generated
+  in_progress
+  completed
+}
+
+enum LearnerProgressState {
+  new
+  onboarding_complete
+  diagnostic_in_progress
+  today_available
+}
+
+enum SessionType {
+  diagnostic
+  daily
+}
+
+model Learner {
+  id          String             @id @default(cuid())
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  examCycles  ExamCycle[]
+  sessions    Session[]
+  attempts    Attempt[]
+  topicStates LearnerTopicState[]
+}
+
+model ExamCycle {
+  id             String               @id @default(cuid())
+  learnerId      String
+  examDate       DateTime
+  activeUnitId   String
+  onboardingComplete Boolean         @default(false)
+  progressState  LearnerProgressState @default(new)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  learner  Learner  @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  sessions Session[]
+
+  @@index([learnerId])
+}
+
+model Topic {
+  id            String             @id
+  title         String
+  sequenceOrder Int
+  examWeight    Int
+  isActive      Boolean            @default(true)
+  questionItems QuestionItem[]
+  topicStates   LearnerTopicState[]
+}
+
+model PrerequisiteLink {
+  id                  String @id @default(cuid())
+  topicId             String
+  prerequisiteTopicId String
+  severity            String
+
+  @@index([topicId])
+  @@index([prerequisiteTopicId])
+}
+
+model QuestionItem {
+  id                    String       @id
+  topicId               String
+  role                  String
+  questionType          QuestionType
+  stem                  String
+  choices               Json
+  inputMode             String
+  correctAnswer         String
+  difficulty            String
+  estimatedTimeSec      Int
+  supportedFeedbackType FeedbackType
+  supportedErrorTags    Json
+  isActive              Boolean      @default(true)
+
+  topic        Topic         @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  sessionItems SessionItem[]
+  attempts     Attempt[]
+
+  @@index([topicId])
+}
+
+model Session {
+  id              String        @id @default(cuid())
+  learnerId       String
+  examCycleId     String
+  sessionType     SessionType
+  status          SessionStatus @default(generated)
+  currentIndex    Int           @default(1)
+  totalItems      Int
+  checkpointToken String
+  generatedAt     DateTime      @default(now())
+  startedAt       DateTime?
+  completedAt     DateTime?
+
+  learner     Learner      @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  examCycle   ExamCycle    @relation(fields: [examCycleId], references: [id], onDelete: Cascade)
+  sessionItems SessionItem[]
+  attempts    Attempt[]
+
+  @@index([learnerId])
+  @@index([examCycleId])
+}
+
+model SessionItem {
+  id             String @id @default(cuid())
+  sessionId      String
+  questionItemId String
+  sequenceOrder  Int
+  slotType       String
+  isFollowup     Boolean @default(false)
+
+  session      Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  questionItem QuestionItem @relation(fields: [questionItemId], references: [id], onDelete: Cascade)
+  attempts     Attempt[]
+
+  @@index([sessionId])
+}
+
+model Attempt {
+  id            String   @id @default(cuid())
+  learnerId     String
+  sessionId     String
+  sessionItemId String
+  questionItemId String
+  answerOutcome String
+  attemptIndex  Int      @default(1)
+  createdAt     DateTime @default(now())
+
+  learner      Learner      @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  session      Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionItem  SessionItem  @relation(fields: [sessionItemId], references: [id], onDelete: Cascade)
+  questionItem QuestionItem @relation(fields: [questionItemId], references: [id], onDelete: Cascade)
+
+  @@index([learnerId])
+  @@index([sessionId])
+  @@index([sessionItemId])
+}
+
+model LearnerTopicState {
+  id                String   @id @default(cuid())
+  learnerId         String
+  topicId           String
+  masteryState      String
+  prereqRiskState   String
+  validEvidenceCount Int     @default(0)
+  lastEvidenceAt    DateTime?
+  nextReviewDueAt   DateTime?
+
+  learner Learner @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  topic   Topic   @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([learnerId, topicId])
+  @@index([topicId])
+}

@@ -1,0 +1,40 @@
+{
+  "version": "ca02_v1",
+  "prerequisiteLinks": [
+    {
+      "topicId": "ca_t02_linear_equations",
+      "prerequisiteTopicId": "ca_t01_foundations",
+      "severity": "high"
+    },
+    {
+      "topicId": "ca_t03_linear_inequalities",
+      "prerequisiteTopicId": "ca_t02_linear_equations",
+      "severity": "high"
+    },
+    {
+      "topicId": "ca_t04_graphing_lines",
+      "prerequisiteTopicId": "ca_t02_linear_equations",
+      "severity": "medium"
+    },
+    {
+      "topicId": "ca_t04_graphing_lines",
+      "prerequisiteTopicId": "ca_t01_foundations",
+      "severity": "medium"
+    },
+    {
+      "topicId": "ca_t05_functions",
+      "prerequisiteTopicId": "ca_t01_foundations",
+      "severity": "medium"
+    },
+    {
+      "topicId": "ca_t06_linear_functions",
+      "prerequisiteTopicId": "ca_t04_graphing_lines",
+      "severity": "high"
+    },
+    {
+      "topicId": "ca_t06_linear_functions",
+      "prerequisiteTopicId": "ca_t05_functions",
+      "severity": "high"
+    }
+  ]
+}

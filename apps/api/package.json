@@ -1,0 +1,34 @@
+{
+  "name": "@twincoach/api",
+  "private": true,
+  "scripts": {
+    "start": "node dist/apps/api/src/main.js",
+    "start:dev": "nest start --watch",
+    "build": "nest build",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "seed:week1": "ts-node --project tsconfig.json scripts/seed-week1.ts",
+    "smoke:learner-slice": "node scripts/verify-learner-slice-reliability.mjs",
+    "smoke:alpha-readiness": "node scripts/verify-alpha-readiness.mjs",
+    "verify:learner-slice": "pnpm run seed:week1 && node scripts/verify-learner-slice-reliability.mjs",
+    "verify:alpha-readiness": "pnpm run seed:week1 && node scripts/verify-alpha-readiness.mjs"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.3",
+    "@nestjs/core": "^11.1.3",
+    "@nestjs/platform-express": "^11.1.3",
+    "@prisma/client": "^6.9.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.7",
+    "@nestjs/schematics": "^11.0.3",
+    "@nestjs/testing": "^11.1.3",
+    "@types/node": "^24.0.0",
+    "prisma": "^6.9.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}

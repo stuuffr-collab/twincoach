@@ -1,0 +1,20 @@
+{
+  "name": "twincoach",
+  "private": true,
+  "packageManager": "pnpm@10.12.1",
+  "scripts": {
+    "build:api": "pnpm --dir apps/api build",
+    "start:api": "pnpm --dir apps/api start",
+    "migrate:deploy:api": "pnpm --dir apps/api prisma:migrate:deploy",
+    "seed:api:week1": "pnpm --dir apps/api seed:week1",
+    "smoke:hosted:learner-slice": "pnpm --dir apps/api smoke:learner-slice",
+    "smoke:hosted:alpha-readiness": "pnpm --dir apps/api smoke:alpha-readiness",
+    "build:web": "pnpm --dir apps/web build",
+    "start:web": "pnpm --dir apps/web start",
+    "dev:web": "pnpm --dir apps/web dev",
+    "dev:api": "pnpm --dir apps/api start:dev",
+    "lint:web": "pnpm --dir apps/web lint",
+    "prisma:generate": "pnpm --dir apps/api prisma:generate",
+    "prisma:migrate:dev": "pnpm --dir apps/api prisma:migrate:dev"
+  }
+}

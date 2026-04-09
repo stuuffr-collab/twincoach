@@ -1,0 +1,181 @@
+{
+  "version": "ca05_v1",
+  "topics": [
+    {
+      "topicId": "ca_t01_foundations",
+      "title": "Foundations for Algebra",
+      "sequenceOrder": 1,
+      "examWeight": 1,
+      "isActive": true
+    },
+    {
+      "topicId": "ca_t02_linear_equations",
+      "title": "Solving Linear Equations",
+      "sequenceOrder": 2,
+      "examWeight": 2,
+      "isActive": true
+    },
+    {
+      "topicId": "ca_t03_linear_inequalities",
+      "title": "Solving Linear Inequalities",
+      "sequenceOrder": 3,
+      "examWeight": 1,
+      "isActive": true
+    },
+    {
+      "topicId": "ca_t04_graphing_lines",
+      "title": "Graphing in the Coordinate Plane",
+      "sequenceOrder": 4,
+      "examWeight": 2,
+      "isActive": true
+    },
+    {
+      "topicId": "ca_t05_functions",
+      "title": "Functions and Function Notation",
+      "sequenceOrder": 5,
+      "examWeight": 1,
+      "isActive": true
+    },
+    {
+      "topicId": "ca_t06_linear_functions",
+      "title": "Linear Functions and Interpretation",
+      "sequenceOrder": 6,
+      "examWeight": 2,
+      "isActive": true
+    }
+  ],
+  "activeUnits": [
+    {
+      "activeUnitId": "ca_u01_algebra_basics",
+      "sequenceOrder": 1,
+      "learnerFacingLabel": "Algebra Basics"
+    },
+    {
+      "activeUnitId": "ca_u02_expressions_formulas",
+      "sequenceOrder": 2,
+      "learnerFacingLabel": "Simplifying Expressions"
+    },
+    {
+      "activeUnitId": "ca_u03_linear_equations",
+      "sequenceOrder": 3,
+      "learnerFacingLabel": "Solving Equations"
+    },
+    {
+      "activeUnitId": "ca_u04_linear_inequalities",
+      "sequenceOrder": 4,
+      "learnerFacingLabel": "Solving Inequalities"
+    },
+    {
+      "activeUnitId": "ca_u05_slope_graph_basics",
+      "sequenceOrder": 5,
+      "learnerFacingLabel": "Slope and Graph Basics"
+    },
+    {
+      "activeUnitId": "ca_u06_graphing_lines",
+      "sequenceOrder": 6,
+      "learnerFacingLabel": "Graphing Lines"
+    },
+    {
+      "activeUnitId": "ca_u07_function_notation",
+      "sequenceOrder": 7,
+      "learnerFacingLabel": "Function Notation"
+    },
+    {
+      "activeUnitId": "ca_u08_linear_functions",
+      "sequenceOrder": 8,
+      "learnerFacingLabel": "Linear Functions"
+    }
+  ],
+  "diagnosticItems": [
+    {
+      "questionItemId": "diag_q01",
+      "topicId": "ca_t01_foundations",
+      "role": "diagnostic_probe",
+      "questionType": "multiple_choice",
+      "stem": "What is the value of 3 + 2 x 4?",
+      "choices": ["20", "11", "14", "24"],
+      "inputMode": "choice",
+      "correctAnswer": "11",
+      "difficulty": "easy",
+      "estimatedTimeSec": 45,
+      "supportedFeedbackType": "needs_review",
+      "supportedErrorTags": ["weak_prerequisite_knowledge"]
+    },
+    {
+      "questionItemId": "diag_q02",
+      "topicId": "ca_t02_linear_equations",
+      "role": "diagnostic_probe",
+      "questionType": "numeric_input",
+      "stem": "Solve for x: 2x + 5 = 15",
+      "choices": [],
+      "inputMode": "numeric",
+      "correctAnswer": "5",
+      "difficulty": "easy",
+      "estimatedTimeSec": 60,
+      "supportedFeedbackType": "try_fix",
+      "supportedErrorTags": ["procedural_error", "weak_prerequisite_knowledge"]
+    },
+    {
+      "questionItemId": "diag_q03",
+      "topicId": "ca_t03_linear_inequalities",
+      "role": "diagnostic_probe",
+      "questionType": "multiple_choice",
+      "stem": "Which solution matches x + 3 > 7?",
+      "choices": ["x > 4", "x < 4", "x >= 4", "x <= 4"],
+      "inputMode": "choice",
+      "correctAnswer": "x > 4",
+      "difficulty": "medium",
+      "estimatedTimeSec": 60,
+      "supportedFeedbackType": "needs_another_check",
+      "supportedErrorTags": ["conceptual_misunderstanding", "procedural_error"]
+    },
+    {
+      "questionItemId": "diag_q04",
+      "topicId": "ca_t04_graphing_lines",
+      "role": "diagnostic_probe",
+      "questionType": "expression_choice",
+      "stem": "Which equation has slope 2 and y-intercept 1?",
+      "choices": ["y = 2x + 1", "y = x + 2", "y = -2x + 1", "y = 2x - 1"],
+      "inputMode": "choice",
+      "correctAnswer": "y = 2x + 1",
+      "difficulty": "medium",
+      "estimatedTimeSec": 75,
+      "supportedFeedbackType": "needs_review",
+      "supportedErrorTags": ["conceptual_misunderstanding"]
+    },
+    {
+      "questionItemId": "diag_q05",
+      "topicId": "ca_t05_functions",
+      "role": "diagnostic_probe",
+      "questionType": "multiple_choice",
+      "stem": "If f(x) = 2x + 3, what is f(4)?",
+      "choices": ["8", "10", "11", "14"],
+      "inputMode": "choice",
+      "correctAnswer": "11",
+      "difficulty": "easy",
+      "estimatedTimeSec": 45,
+      "supportedFeedbackType": "try_fix",
+      "supportedErrorTags": ["conceptual_misunderstanding", "careless_mistake"]
+    },
+    {
+      "questionItemId": "diag_q06",
+      "topicId": "ca_t06_linear_functions",
+      "role": "diagnostic_probe",
+      "questionType": "multiple_choice",
+      "stem": "A line goes through (0, 3) and (1, 5). Which rule matches it?",
+      "choices": ["y = 2x + 3", "y = 3x + 2", "y = x + 3", "y = 2x - 3"],
+      "inputMode": "choice",
+      "correctAnswer": "y = 2x + 3",
+      "difficulty": "medium",
+      "estimatedTimeSec": 90,
+      "supportedFeedbackType": "needs_another_check",
+      "supportedErrorTags": ["conceptual_misunderstanding", "procedural_error"]
+    }
+  ],
+  "feedbackFixtures": {
+    "correct": "Correct.",
+    "needs_review": "That answer is not correct. Review the core idea before moving on.",
+    "try_fix": "That answer is not correct. Check the setup and try the key step again.",
+    "needs_another_check": "That answer is not correct. We need one more check before drawing a stronger conclusion."
+  }
+}
