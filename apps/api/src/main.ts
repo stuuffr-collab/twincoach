@@ -2,7 +2,13 @@ import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 
 async function bootstrap() {
-  process.loadEnvFile?.(".env");
+  try {
+    process.loadEnvFile?.(".env");
+  } catch (error) {
+    if (!isMissingEnvFileError(error)) {
+      throw error;
+    }
+  }
   const app = await NestFactory.create(AppModule);
   app.enableCors({
     origin: readAllowedOrigins(),
@@ -23,6 +29,14 @@ function readAllowedOrigins() {
   }
 
   return ["http://localhost:3000"];
+}
+
+function isMissingEnvFileError(error: unknown) {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    error.code === "ENOENT"
+  );
 }
 
 void bootstrap();
