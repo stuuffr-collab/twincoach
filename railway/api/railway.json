@@ -2,12 +2,14 @@
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
     "builder": "RAILPACK",
-    "buildCommand": "pnpm install --frozen-lockfile && pnpm build:api",
+    "buildCommand": "pnpm install --frozen-lockfile && pnpm --dir apps/api exec prisma generate && pnpm build:api",
     "watchPatterns": [
       "/apps/api/**",
       "/content/**",
       "/package.json",
+      "/pnpm-lock.yaml",
       "/pnpm-workspace.yaml",
+      "/railway/api/railway.json",
       "/tsconfig.base.json"
     ]
   },
