@@ -172,6 +172,92 @@
       "supportedErrorTags": ["conceptual_misunderstanding", "procedural_error"]
     }
   ],
+  "reviewItems": [
+    {
+      "questionItemId": "diag_q01_r01",
+      "topicId": "ca_t01_foundations",
+      "role": "review_backup",
+      "questionType": "multiple_choice",
+      "stem": "What is the value of 7 - 3 x 2?",
+      "choices": ["8", "1", "2", "14"],
+      "inputMode": "choice",
+      "correctAnswer": "1",
+      "difficulty": "easy",
+      "estimatedTimeSec": 45,
+      "supportedFeedbackType": "needs_review",
+      "supportedErrorTags": ["weak_prerequisite_knowledge"]
+    },
+    {
+      "questionItemId": "diag_q02_r01",
+      "topicId": "ca_t02_linear_equations",
+      "role": "review_backup",
+      "questionType": "numeric_input",
+      "stem": "Solve for x: 3x - 6 = 9",
+      "choices": [],
+      "inputMode": "numeric",
+      "correctAnswer": "5",
+      "difficulty": "easy",
+      "estimatedTimeSec": 60,
+      "supportedFeedbackType": "try_fix",
+      "supportedErrorTags": ["procedural_error", "weak_prerequisite_knowledge"]
+    },
+    {
+      "questionItemId": "diag_q03_r01",
+      "topicId": "ca_t03_linear_inequalities",
+      "role": "review_backup",
+      "questionType": "multiple_choice",
+      "stem": "Which solution matches 2x - 1 < 5?",
+      "choices": ["x < 3", "x > 3", "x <= 2", "x >= 2"],
+      "inputMode": "choice",
+      "correctAnswer": "x < 3",
+      "difficulty": "medium",
+      "estimatedTimeSec": 60,
+      "supportedFeedbackType": "needs_another_check",
+      "supportedErrorTags": ["conceptual_misunderstanding", "procedural_error"]
+    },
+    {
+      "questionItemId": "diag_q04_r01",
+      "topicId": "ca_t04_graphing_lines",
+      "role": "review_backup",
+      "questionType": "expression_choice",
+      "stem": "Which equation has slope 3 and y-intercept -2?",
+      "choices": ["y = 3x - 2", "y = -3x - 2", "y = 2x + 3", "y = 3x + 2"],
+      "inputMode": "choice",
+      "correctAnswer": "y = 3x - 2",
+      "difficulty": "medium",
+      "estimatedTimeSec": 75,
+      "supportedFeedbackType": "needs_review",
+      "supportedErrorTags": ["conceptual_misunderstanding"]
+    },
+    {
+      "questionItemId": "diag_q05_r01",
+      "topicId": "ca_t05_functions",
+      "role": "review_backup",
+      "questionType": "multiple_choice",
+      "stem": "If g(x) = x + 6, what is g(5)?",
+      "choices": ["10", "11", "12", "30"],
+      "inputMode": "choice",
+      "correctAnswer": "11",
+      "difficulty": "easy",
+      "estimatedTimeSec": 45,
+      "supportedFeedbackType": "try_fix",
+      "supportedErrorTags": ["conceptual_misunderstanding", "careless_mistake"]
+    },
+    {
+      "questionItemId": "diag_q06_r01",
+      "topicId": "ca_t06_linear_functions",
+      "role": "review_backup",
+      "questionType": "multiple_choice",
+      "stem": "A line goes through (0, 1) and (1, 4). Which rule matches it?",
+      "choices": ["y = 3x + 1", "y = x + 3", "y = 4x + 1", "y = 3x - 1"],
+      "inputMode": "choice",
+      "correctAnswer": "y = 3x + 1",
+      "difficulty": "medium",
+      "estimatedTimeSec": 90,
+      "supportedFeedbackType": "needs_another_check",
+      "supportedErrorTags": ["conceptual_misunderstanding", "procedural_error"]
+    }
+  ],
   "feedbackFixtures": {
     "correct": "Correct.",
     "needs_review": "That answer is not correct. Review the core idea before moving on.",

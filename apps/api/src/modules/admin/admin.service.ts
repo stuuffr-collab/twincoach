@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import { SessionStatus } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { LearnerProgressService } from "../learner/learner-progress.service";
@@ -160,11 +165,36 @@ export class AdminService {
   async deactivateQuestionItem(questionItemId: string) {
     const existing = await this.prisma.questionItem.findUnique({
       where: { id: questionItemId },
-      select: { id: true },
+      select: { id: true, topicId: true, isActive: true },
     });
 
     if (!existing) {
       throw new NotFoundException("Question item not found");
+    }
+
+    if (!existing.isActive) {
+      return {
+        questionItemId,
+        isActive: false,
+      };
+    }
+
+    const activeTopicItemCount = await this.prisma.questionItem.count({
+      where: {
+        topicId: existing.topicId,
+        isActive: true,
+      },
+    });
+
+    if (activeTopicItemCount <= 1) {
+      this.logger.warn(
+        JSON.stringify({
+          event: "question_item_deactivate_last_active_blocked",
+          questionItemId,
+          topicId: existing.topicId,
+        }),
+      );
+      throw new ConflictException("Cannot deactivate last active item for topic");
     }
 
     await this.prisma.questionItem.update({

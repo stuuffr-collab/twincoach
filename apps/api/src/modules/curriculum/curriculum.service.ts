@@ -27,7 +27,7 @@ export class CurriculumService {
       });
     }
 
-    for (const item of seedPack.diagnosticItems) {
+    for (const item of this.getAllQuestionItems()) {
       await this.prisma.questionItem.upsert({
         where: { id: item.questionItemId },
         update: {
@@ -64,7 +64,7 @@ export class CurriculumService {
 
     return {
       topicsSeeded: seedPack.topics.length,
-      diagnosticItemsSeeded: seedPack.diagnosticItems.length,
+      diagnosticItemsSeeded: this.getAllQuestionItems().length,
     };
   }
 
@@ -73,14 +73,20 @@ export class CurriculumService {
   }
 
   getDiagnosticItems() {
-    return seedPack.diagnosticItems;
+    return this.getAllQuestionItems().filter(
+      (item) => item.role === "diagnostic_probe",
+    );
   }
 
   getDailySessionItems() {
-    return seedPack.diagnosticItems.slice(0, 3);
+    return this.getDiagnosticItems().slice(0, 3);
   }
 
   getFeedbackText(feedbackType: FeedbackType) {
     return seedPack.feedbackFixtures[feedbackType];
+  }
+
+  private getAllQuestionItems() {
+    return [...seedPack.diagnosticItems, ...(seedPack.reviewItems ?? [])];
   }
 }

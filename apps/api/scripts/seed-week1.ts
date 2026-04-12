@@ -6,6 +6,11 @@ process.loadEnvFile?.(".env");
 const prisma = new PrismaClient();
 
 async function main() {
+  const allQuestionItems = [
+    ...seedPack.diagnosticItems,
+    ...(seedPack.reviewItems ?? []),
+  ];
+
   for (const topic of seedPack.topics) {
     await prisma.topic.upsert({
       where: { id: topic.topicId },
@@ -25,7 +30,7 @@ async function main() {
     });
   }
 
-  for (const item of seedPack.diagnosticItems) {
+  for (const item of allQuestionItems) {
     await prisma.questionItem.upsert({
       where: { id: item.questionItemId },
       update: {
@@ -63,7 +68,7 @@ async function main() {
   console.log(
     JSON.stringify({
       topicsSeeded: seedPack.topics.length,
-      diagnosticItemsSeeded: seedPack.diagnosticItems.length,
+      diagnosticItemsSeeded: allQuestionItems.length,
     }),
   );
 }
