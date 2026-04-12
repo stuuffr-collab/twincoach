@@ -7,6 +7,7 @@ import { FeedbackCard } from "@/src/components/feedback-card";
 import { PageHeader } from "@/src/components/page-header";
 import { ProgressBar } from "@/src/components/progress-bar";
 import { QuestionCard } from "@/src/components/question-card";
+import { StatePanel } from "@/src/components/state-panel";
 import { StickyActionBar } from "@/src/components/sticky-action-bar";
 import { StudentShell } from "@/src/components/student-shell";
 import {
@@ -97,7 +98,7 @@ export default function DailySessionPage() {
           submitError.message === "Session item mismatch"
         ) {
           await recoverLatestSession(
-            "Your session was updated. Continue from the latest question.",
+            "We refreshed your latest saved question so you can continue safely.",
           );
           return;
         }
@@ -108,7 +109,7 @@ export default function DailySessionPage() {
         }
       }
 
-      setError("We couldn't save that answer. Try again.");
+      setError("We couldn't save that answer yet. Your session is still saved.");
     } finally {
       setIsSubmitting(false);
     }
@@ -138,7 +139,7 @@ export default function DailySessionPage() {
         return;
       }
 
-      setError("We couldn't load the next question.");
+      setError("We couldn't load the next question yet. Try again.");
     } finally {
       setIsAdvancing(false);
     }
@@ -161,14 +162,14 @@ export default function DailySessionPage() {
         return;
       }
 
-      setError("We couldn't restore your session. Refresh and try again.");
+      setError("We couldn't restore your saved session state. Refresh and try again.");
     }
   }
 
   const primaryLabel = feedback
     ? feedback.sessionStatus === "completed"
-      ? "View session summary"
-      : "Next question"
+      ? "View your recap"
+      : "Continue"
     : isSubmitting
       ? "Saving..."
       : "Submit answer";
@@ -176,29 +177,49 @@ export default function DailySessionPage() {
   return (
     <StudentShell>
       <PageHeader
-        title="Daily Session"
-        subtitle="Work through today's short practice set."
+        detail="You can pause and resume later without losing your place."
+        eyebrow="Today's session"
+        subtitle="Short guided practice to keep your exam plan moving."
+        title="Keep your momentum going"
       />
 
       {session ? (
-        <ProgressBar currentIndex={session.currentIndex} totalItems={session.totalItems} />
+        <ProgressBar
+          badgeText="Saved as you go"
+          currentIndex={session.currentIndex}
+          label="Today's session"
+          supportingText="Focus on one question at a time. We'll handle the next step after each answer."
+          tone="session"
+          totalItems={session.totalItems}
+        />
       ) : null}
 
       <section className="flex flex-1 flex-col gap-4 px-4 py-4">
         {loading ? (
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--text-muted)]">
-            Loading your daily session...
-          </div>
+          <StatePanel
+            description="We're loading today's next saved practice step."
+            eyebrow="Today's practice"
+            title="Loading your guided practice..."
+            tone="loading"
+          />
         ) : null}
 
         {error ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            {error}
-          </div>
+          <StatePanel
+            description={error}
+            eyebrow="Session update"
+            title="We hit a temporary issue."
+            tone={error.includes("refreshed") || error.includes("restore") ? "recovery" : "error"}
+          />
         ) : null}
 
         {session ? (
-          <QuestionCard stem={session.currentItem.stem}>
+          <QuestionCard
+            eyebrow="Today's practice"
+            helper="Stay with this question only. Your progress is already being tracked."
+            stem={session.currentItem.stem}
+            tone="session"
+          >
             <AnswerInputSwitcher
               choices={session.currentItem.choices}
               onChange={setAnswerValue}
@@ -210,6 +231,7 @@ export default function DailySessionPage() {
 
         {feedback ? (
           <FeedbackCard
+            context="session"
             feedbackText={feedback.feedbackText}
             feedbackType={feedback.feedbackType}
           />
@@ -226,6 +248,13 @@ export default function DailySessionPage() {
         }
         label={primaryLabel}
         onClick={feedback ? handleContinue : handleSubmit}
+        supportingText={
+          feedback
+            ? feedback.sessionStatus === "completed"
+              ? "We'll take you to your saved session recap."
+              : "Your answer is saved. Continue when you're ready."
+            : "Your session is saved after each answer."
+        }
       />
     </StudentShell>
   );

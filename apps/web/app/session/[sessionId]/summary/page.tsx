@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { PageHeader } from "@/src/components/page-header";
+import { StatePanel } from "@/src/components/state-panel";
 import { StickyActionBar } from "@/src/components/sticky-action-bar";
 import { StudentShell } from "@/src/components/student-shell";
 import { ApiError, fetchSessionSummary, type SessionSummary } from "@/src/lib/api";
@@ -57,54 +58,87 @@ export default function SessionSummaryPage() {
   return (
     <StudentShell>
       <PageHeader
-        title="Session Summary"
-        subtitle="Your daily session has been saved."
+        detail="This session is saved and your study plan has been updated."
+        eyebrow="Daily session"
+        subtitle="Your work is saved. Here is the clearest view of what you finished."
+        title="Session complete"
       />
       <section className="flex flex-1 flex-col gap-4 px-4 pb-6">
         {loading ? (
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--text-muted)]">
-            Loading your summary...
-          </div>
+          <StatePanel
+            description="We're loading the saved recap for this session."
+            eyebrow="Session recap"
+            title="Loading your session recap..."
+            tone="loading"
+          />
         ) : null}
 
         {error ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            {error}
-          </div>
+          <StatePanel
+            description={error}
+            eyebrow="Session recap"
+            title="We couldn't load your saved recap."
+            tone="error"
+          />
         ) : null}
 
         {summary ? (
           <>
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-              <div className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">
-                Questions completed
+            <div className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                Session saved
               </div>
-              <div className="mt-2 text-base font-semibold text-[var(--text)]">
-                {summary.totalItems}
+              <div className="mt-3 text-xl font-semibold text-[var(--text)]">
+                You finished today's short practice.
               </div>
-            </div>
-
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-              <div className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">
-                Correct answers
-              </div>
-              <div className="mt-2 text-base font-semibold text-[var(--text)]">
-                {summary.correctCount}
+              <div className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
+                Your answers are saved and your study state has been updated. Head back to
+                Today's plan for the next step.
               </div>
             </div>
 
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-              <div className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">
-                Incorrect answers
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                Session recap
               </div>
-              <div className="mt-2 text-base font-semibold text-[var(--text)]">
-                {summary.incorrectCount}
+
+              <div className="mt-4 grid grid-cols-3 gap-3">
+                <div className="rounded-2xl bg-[var(--surface-muted)] p-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                    Completed
+                  </div>
+                  <div className="mt-2 text-xl font-semibold text-[var(--text)]">
+                    {summary.totalItems}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-green-50 p-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-green-700">
+                    Correct
+                  </div>
+                  <div className="mt-2 text-xl font-semibold text-green-900">
+                    {summary.correctCount}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-slate-50 p-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">
+                    To review
+                  </div>
+                  <div className="mt-2 text-xl font-semibold text-slate-900">
+                    {summary.incorrectCount}
+                  </div>
+                </div>
               </div>
             </div>
           </>
         ) : null}
       </section>
-      <StickyActionBar label="Back to Today" onClick={() => router.replace("/today")} />
+      <StickyActionBar
+        label="Back to today's plan"
+        onClick={() => router.replace("/today")}
+        supportingText="Your progress is already saved."
+      />
     </StudentShell>
   );
 }

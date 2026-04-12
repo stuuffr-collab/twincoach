@@ -7,6 +7,7 @@ import { FeedbackCard } from "@/src/components/feedback-card";
 import { PageHeader } from "@/src/components/page-header";
 import { ProgressBar } from "@/src/components/progress-bar";
 import { QuestionCard } from "@/src/components/question-card";
+import { StatePanel } from "@/src/components/state-panel";
 import { StickyActionBar } from "@/src/components/sticky-action-bar";
 import { StudentShell } from "@/src/components/student-shell";
 import {
@@ -90,7 +91,9 @@ export default function DiagnosticPage() {
           error.message === "Duplicate submit" ||
           error.message === "Session item mismatch"
         ) {
-          await recoverLatestSession("Your session was updated. Continue from the latest question.");
+          await recoverLatestSession(
+            "We refreshed your latest saved question so you can keep going safely.",
+          );
           return;
         }
 
@@ -100,7 +103,7 @@ export default function DiagnosticPage() {
         }
       }
 
-      setError("We couldn't save that answer. Try again.");
+      setError("We couldn't save that answer yet. Your place is still saved.");
     } finally {
       setIsSubmitting(false);
     }
@@ -130,7 +133,7 @@ export default function DiagnosticPage() {
         return;
       }
 
-      setError("We couldn't load the next question.");
+      setError("We couldn't load the next question yet. Try again.");
     } finally {
       setIsAdvancing(false);
     }
@@ -153,14 +156,14 @@ export default function DiagnosticPage() {
         return;
       }
 
-      setError("We couldn't restore your diagnostic. Refresh and try again.");
+      setError("We couldn't restore your saved question. Refresh and try again.");
     }
   }
 
   const primaryLabel = feedback
     ? feedback.sessionStatus === "completed"
       ? "Go to Today"
-      : "Next question"
+      : "Continue"
     : isSubmitting
       ? "Saving..."
       : "Submit answer";
@@ -168,29 +171,49 @@ export default function DiagnosticPage() {
   return (
     <StudentShell>
       <PageHeader
-        title="Diagnostic"
-        subtitle="Answer each question to build your first study plan."
+        detail="This is a short setup step. It is not graded and it helps us choose your best next step."
+        eyebrow="Diagnostic"
+        subtitle="Answer one question at a time so we can build your starting study plan."
+        title="Build your starting plan"
       />
 
       {session ? (
-        <ProgressBar currentIndex={session.currentIndex} totalItems={session.totalItems} />
+        <ProgressBar
+          badgeText="Not graded"
+          currentIndex={session.currentIndex}
+          label="Diagnostic progress"
+          supportingText="Answer as best you can. We'll use this to guide today's plan."
+          tone="diagnostic"
+          totalItems={session.totalItems}
+        />
       ) : null}
 
       <section className="flex flex-1 flex-col gap-4 px-4 py-4">
         {loading ? (
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--text-muted)]">
-            Loading your diagnostic...
-          </div>
+          <StatePanel
+            description="We're opening the short setup questions that shape your first study plan."
+            eyebrow="Diagnostic setup"
+            title="Getting your diagnostic ready..."
+            tone="loading"
+          />
         ) : null}
 
         {error ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            {error}
-          </div>
+          <StatePanel
+            description={error}
+            eyebrow="Diagnostic update"
+            title="We hit a temporary issue."
+            tone={error.includes("refreshed") || error.includes("restore") ? "recovery" : "error"}
+          />
         ) : null}
 
         {session ? (
-          <QuestionCard stem={session.currentItem.stem}>
+          <QuestionCard
+            eyebrow="Diagnostic question"
+            helper="Take your best next step. We'll handle what comes after this question."
+            stem={session.currentItem.stem}
+            tone="diagnostic"
+          >
             <AnswerInputSwitcher
               choices={session.currentItem.choices}
               onChange={setAnswerValue}
@@ -202,6 +225,7 @@ export default function DiagnosticPage() {
 
         {feedback ? (
           <FeedbackCard
+            context="diagnostic"
             feedbackText={feedback.feedbackText}
             feedbackType={feedback.feedbackType}
           />
@@ -218,6 +242,13 @@ export default function DiagnosticPage() {
         }
         label={primaryLabel}
         onClick={feedback ? handleContinue : handleSubmit}
+        supportingText={
+          feedback
+            ? feedback.sessionStatus === "completed"
+              ? "We'll take you straight to today's plan."
+              : "Your answer is saved. Continue when you're ready."
+            : "This setup is saved question by question."
+        }
       />
     </StudentShell>
   );

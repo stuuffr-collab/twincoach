@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/src/components/page-header";
+import { StatePanel } from "@/src/components/state-panel";
 import { StickyActionBar } from "@/src/components/sticky-action-bar";
 import { StudentShell } from "@/src/components/student-shell";
 import {
@@ -11,6 +12,18 @@ import {
   fetchTodaySummary,
   type TodaySummary,
 } from "@/src/lib/api";
+
+function getReadinessTone(readinessBand: string) {
+  if (readinessBand === "Needs Review") {
+    return "border-amber-200 bg-amber-50 text-amber-900";
+  }
+
+  if (readinessBand === "Building Readiness") {
+    return "border-blue-200 bg-blue-50 text-blue-900";
+  }
+
+  return "border-slate-200 bg-slate-50 text-slate-900";
+}
 
 function getReadinessCopy(readinessBand: string) {
   if (readinessBand === "Needs Review") {
@@ -33,6 +46,20 @@ function getReadinessCopy(readinessBand: string) {
     explanation:
       "You have not answered enough across the exam scope to support a stronger readiness signal yet.",
     nextStep: "Keep completing short sessions so we can confirm weak areas before the exam.",
+  };
+}
+
+function getPrimaryActionCopy(summary: TodaySummary) {
+  if (summary.hasActiveDailySession) {
+    return {
+      label: "Resume today's session",
+      support: "Pick up right where you left off.",
+    };
+  }
+
+  return {
+    label: "Start today's session",
+    support: "One short session moves today's plan forward.",
   };
 }
 
@@ -110,62 +137,86 @@ export default function TodayPage() {
   return (
     <StudentShell>
       <PageHeader
-        title="Today"
-        subtitle="Your diagnostic is complete. Here is your next study state."
+        detail="One short session today keeps your exam plan moving."
+        eyebrow="Today's plan"
+        subtitle="A calm view of your current readiness and the next study step."
+        title="Keep your exam plan moving"
       />
       <section className="flex flex-1 flex-col gap-4 px-4 pb-6">
         {loading ? (
-          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-[var(--text-muted)]">
-            Loading your today plan...
-          </div>
+          <StatePanel
+            description="We're loading today's readiness signal and your next study step."
+            eyebrow="Today's plan"
+            title="Loading your plan for today..."
+            tone="loading"
+          />
         ) : null}
 
         {error ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            {error}
-          </div>
+          <StatePanel
+            description={error}
+            eyebrow="Today's plan"
+            title="We couldn't load today's plan."
+            tone="error"
+          />
         ) : null}
 
         {summary ? (
           <>
             {(() => {
               const readinessCopy = getReadinessCopy(summary.readinessBand);
+              const readinessTone = getReadinessTone(summary.readinessBand);
+              const actionCopy = getPrimaryActionCopy(summary);
 
               return (
                 <>
-                  <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-                    <div className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">
-                      Exam date
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                        Exam date
+                      </div>
+                      <div className="mt-2 text-base font-semibold text-[var(--text)]">
+                        {summary.examDate}
+                      </div>
                     </div>
-                    <div className="mt-2 text-base font-semibold text-[var(--text)]">
-                      {summary.examDate}
-                    </div>
-                    <div className="mt-2 text-sm text-[var(--text-muted)]">
-                      {summary.daysToExam} days to exam
+
+                    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                        Time left
+                      </div>
+                      <div className="mt-2 text-base font-semibold text-[var(--text)]">
+                        {summary.daysToExam} days
+                      </div>
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-                    <div className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">
+                  <div className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
                       Readiness
                     </div>
-                    <div className="mt-2 text-base font-semibold text-[var(--text)]">
+                    <div
+                      className={`mt-3 inline-flex rounded-full border px-3 py-1.5 text-sm font-semibold ${readinessTone}`}
+                    >
                       {summary.readinessBand}
                     </div>
-                    <div className="mt-2 text-sm text-[var(--text-muted)]">
+                    <div className="mt-4 text-sm leading-6 text-[var(--text-muted)]">
                       {readinessCopy.explanation}
                     </div>
-                    <div className="mt-3 rounded-lg bg-[var(--surface-muted)] px-3 py-2 text-sm text-[var(--text)]">
-                      Next step: {readinessCopy.nextStep}
-                    </div>
-                  </div>
 
-                  <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-                    <div className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">
-                      Next action
+                    <div className="mt-5 rounded-2xl bg-[var(--surface-muted)] p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                        Do this now
+                      </div>
+                      <div className="mt-2 text-base font-semibold text-[var(--text)]">
+                        {actionCopy.label}
+                      </div>
+                      <div className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
+                        {readinessCopy.nextStep}
+                      </div>
                     </div>
-                    <div className="mt-2 text-base font-semibold text-[var(--text)]">
-                      {summary.primaryActionLabel}
+
+                    <div className="mt-4 text-sm text-[var(--text-muted)]">
+                      {actionCopy.support}
                     </div>
                   </div>
                 </>
@@ -180,10 +231,15 @@ export default function TodayPage() {
           isStarting
             ? "Starting..."
             : summary
-              ? summary.primaryActionLabel
-              : "Start 10-Min Session"
+              ? getPrimaryActionCopy(summary).label
+              : "Start today's session"
         }
         onClick={handlePrimaryAction}
+        supportingText={
+          summary
+            ? getPrimaryActionCopy(summary).support
+            : "Your next study step appears here as soon as your plan loads."
+        }
       />
     </StudentShell>
   );
