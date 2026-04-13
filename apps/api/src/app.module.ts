@@ -5,6 +5,7 @@ import { CurriculumModule } from "./modules/curriculum/curriculum.module";
 import { LearnerModule } from "./modules/learner/learner.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { SessionModule } from "./modules/session/session.module";
+import { TelemetryModule } from "./modules/telemetry/telemetry.module";
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { SessionModule } from "./modules/session/session.module";
     LearnerModule,
     CurriculumModule,
     SessionModule,
+    TelemetryModule,
   ],
 })
 export class AppModule {}

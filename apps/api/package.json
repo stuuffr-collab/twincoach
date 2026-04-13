@@ -2,7 +2,7 @@
   "name": "@twincoach/api",
   "private": true,
   "scripts": {
-    "start": "node dist/apps/api/src/main.js",
+    "start": "node dist/main.js",
     "start:dev": "nest start --watch",
     "build": "nest build",
     "prisma:generate": "prisma generate",
@@ -10,9 +10,11 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "seed:week1": "ts-node --project tsconfig.json scripts/seed-week1.ts",
     "smoke:learner-slice": "node scripts/verify-learner-slice-reliability.mjs",
+    "smoke:telemetry-v1": "node scripts/verify-programming-telemetry.mjs",
     "smoke:alpha-readiness": "node scripts/verify-alpha-readiness.mjs",
     "verify:learner-slice": "pnpm run seed:week1 && node scripts/verify-learner-slice-reliability.mjs",
-    "verify:alpha-readiness": "pnpm run seed:week1 && node scripts/verify-alpha-readiness.mjs"
+    "verify:alpha-readiness": "pnpm run seed:week1 && node scripts/verify-alpha-readiness.mjs",
+    "verify:programming-observability": "pnpm run seed:week1 && node scripts/verify-programming-telemetry.mjs && node scripts/verify-alpha-readiness.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.3",

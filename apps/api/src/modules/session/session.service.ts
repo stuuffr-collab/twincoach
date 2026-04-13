@@ -7,8 +7,11 @@ import {
 } from "@nestjs/common";
 import {
   FeedbackType,
+  HelpKind,
   LearnerProgressState,
   Prisma,
+  ProgrammingErrorTag,
+  SessionMode,
   SessionStatus,
   SessionType,
 } from "@prisma/client";
@@ -16,6 +19,9 @@ import { randomUUID } from "node:crypto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CurriculumService } from "../curriculum/curriculum.service";
 import { LearnerProgressService } from "../learner/learner-progress.service";
+import { ProgrammingPlannerService } from "../learner/programming-planner.service";
+import { TelemetryService } from "../telemetry/telemetry.service";
+import { deriveProgrammingSummaryCodes } from "./programming-summary.util";
 
 @Injectable()
 export class SessionService {
@@ -25,6 +31,8 @@ export class SessionService {
     private readonly prisma: PrismaService,
     private readonly curriculumService: CurriculumService,
     private readonly learnerProgressService: LearnerProgressService,
+    private readonly programmingPlannerService: ProgrammingPlannerService,
+    private readonly telemetryService: TelemetryService,
   ) {}
 
   async createOrResumeDiagnostic(learnerId: string) {
@@ -49,14 +57,6 @@ export class SessionService {
     });
 
     if (activeSession) {
-      this.logger.log(
-        JSON.stringify({
-          event: "diagnostic_session_resumed",
-          learnerId,
-          sessionId: activeSession.id,
-        }),
-      );
-
       if (activeSession.status === SessionStatus.generated) {
         await this.prisma.session.update({
           where: { id: activeSession.id },
@@ -80,19 +80,17 @@ export class SessionService {
         sessionType: SessionType.diagnostic,
         status: SessionStatus.completed,
       },
-      select: {
-        id: true,
-      },
+      select: { id: true },
     });
 
     if (completedDiagnostic) {
       throw new ConflictException("Diagnostic completed");
     }
 
-    const diagnosticItems = this.curriculumService.getDiagnosticItems();
+    const diagnosticTasks = await this.curriculumService.getDiagnosticTasks();
 
-    if (diagnosticItems.length === 0) {
-      throw new BadRequestException("No diagnostic items available");
+    if (diagnosticTasks.length !== 6) {
+      throw new BadRequestException("Diagnostic fixture count invalid");
     }
 
     const sessionId = randomUUID();
@@ -107,19 +105,19 @@ export class SessionService {
           sessionType: SessionType.diagnostic,
           status: SessionStatus.in_progress,
           currentIndex: 1,
-          totalItems: diagnosticItems.length,
+          totalItems: diagnosticTasks.length,
           checkpointToken,
           startedAt: new Date(),
         },
       });
 
       await tx.sessionItem.createMany({
-        data: diagnosticItems.map((item, index) => ({
+        data: diagnosticTasks.map((task, index) => ({
           id: randomUUID(),
           sessionId,
-          questionItemId: item.questionItemId,
+          questionItemId: task.id,
           sequenceOrder: index + 1,
-          slotType: item.role,
+          slotType: "diagnostic_task",
           isFollowup: false,
         })),
       });
@@ -132,14 +130,17 @@ export class SessionService {
       });
     });
 
-    this.logger.log(
-      JSON.stringify({
-        event: "diagnostic_session_created",
-        learnerId,
+    await this.learnerProgressService.markSessionStarted(learnerId);
+    await this.telemetryService.recordEvent({
+      eventName: "tc_diagnostic_started",
+      learnerId,
+      route: "/diagnostic",
+      sessionId,
+      properties: {
         sessionId,
-        totalItems: diagnosticItems.length,
-      }),
-    );
+        sessionType: "diagnostic",
+      },
+    });
 
     return this.getSessionPayload({
       learnerId,
@@ -154,19 +155,17 @@ export class SessionService {
       throw new BadRequestException("Onboarding incomplete");
     }
 
-    const hasCompletedDiagnostic = await this.prisma.session.findFirst({
+    const completedDiagnostic = await this.prisma.session.findFirst({
       where: {
         learnerId,
         examCycleId: examCycle.id,
         sessionType: SessionType.diagnostic,
         status: SessionStatus.completed,
       },
-      select: {
-        id: true,
-      },
+      select: { id: true },
     });
 
-    if (!hasCompletedDiagnostic) {
+    if (!completedDiagnostic) {
       throw new BadRequestException("Diagnostic incomplete");
     }
 
@@ -174,7 +173,7 @@ export class SessionService {
       where: {
         learnerId,
         examCycleId: examCycle.id,
-        sessionType: SessionType.daily,
+        sessionType: SessionType.daily_practice,
         status: {
           in: [SessionStatus.generated, SessionStatus.in_progress],
         },
@@ -185,14 +184,6 @@ export class SessionService {
     });
 
     if (activeSession) {
-      this.logger.log(
-        JSON.stringify({
-          event: "daily_session_resumed",
-          learnerId,
-          sessionId: activeSession.id,
-        }),
-      );
-
       if (activeSession.status === SessionStatus.generated) {
         await this.prisma.session.update({
           where: { id: activeSession.id },
@@ -203,17 +194,29 @@ export class SessionService {
         });
       }
 
+      await this.learnerProgressService.markSessionResumed(learnerId);
+      await this.telemetryService.recordEvent({
+        eventName: "tc_session_resumed",
+        learnerId,
+        route: "/today",
+        sessionId: activeSession.id,
+        properties: {
+          sessionId: activeSession.id,
+          resumeSource: "today",
+        },
+      });
+
       return this.getSessionPayload({
         learnerId,
         sessionId: activeSession.id,
       });
     }
 
-    const dailyItems = await this.learnerProgressService.buildDailySessionPlan(
+    const plan = await this.programmingPlannerService.buildDailySessionPlan(
       learnerId,
     );
 
-    if (dailyItems.length === 0) {
+    if (plan.tasks.length === 0) {
       throw new BadRequestException("No daily session items available");
     }
 
@@ -226,35 +229,43 @@ export class SessionService {
           id: sessionId,
           learnerId,
           examCycleId: examCycle.id,
-          sessionType: SessionType.daily,
+          sessionType: SessionType.daily_practice,
+          sessionMode: plan.decision.sessionMode,
+          focusConceptId: plan.decision.focusConceptId,
+          rationaleCode: plan.decision.rationaleCode,
           status: SessionStatus.in_progress,
           currentIndex: 1,
-          totalItems: dailyItems.length,
+          totalItems: plan.tasks.length,
           checkpointToken,
           startedAt: new Date(),
         },
       });
 
       await tx.sessionItem.createMany({
-        data: dailyItems.map((item, index) => ({
+        data: plan.tasks.map((task, index) => ({
           id: randomUUID(),
           sessionId,
-          questionItemId: item.questionItemId,
+          questionItemId: task.id,
           sequenceOrder: index + 1,
-          slotType: item.slotType,
+          slotType: task.taskType,
           isFollowup: false,
         })),
       });
     });
 
-    this.logger.log(
-      JSON.stringify({
-        event: "daily_session_created",
-        learnerId,
+    await this.learnerProgressService.markSessionStarted(learnerId);
+    await this.telemetryService.recordEvent({
+      eventName: "tc_session_started",
+      learnerId,
+      route: "/today",
+      sessionId,
+      properties: {
         sessionId,
-        totalItems: dailyItems.length,
-      }),
-    );
+        sessionMode: plan.decision.sessionMode,
+        focusConceptId: plan.decision.focusConceptId,
+        totalItems: plan.tasks.length,
+      },
+    });
 
     return this.getSessionPayload({
       learnerId,
@@ -269,12 +280,10 @@ export class SessionService {
         learnerId: input.learnerId,
       },
       include: {
+        focusConcept: true,
         sessionItems: {
           orderBy: {
             sequenceOrder: "asc",
-          },
-          include: {
-            questionItem: true,
           },
         },
       },
@@ -296,20 +305,70 @@ export class SessionService {
       throw new NotFoundException("Current item not found");
     }
 
+    const taskMap = await this.curriculumService.getTasksByIds(
+      session.sessionItems.map((item) => item.questionItemId),
+    );
+    const currentTask = taskMap.get(currentSessionItem.questionItemId);
+
+    if (!currentTask) {
+      throw new NotFoundException("Programming task not found");
+    }
+
+    const baseTaskPayload = {
+      sessionItemId: currentSessionItem.id,
+      taskId: currentTask.id,
+      conceptId: currentTask.conceptId,
+      taskType: currentTask.taskType,
+      prompt: currentTask.prompt,
+      codeSnippet: currentTask.codeSnippet,
+      choices: this.readChoiceObjects(currentTask.choices),
+      answerFormat: currentTask.answerFormat,
+      helperText: currentTask.helperText,
+    };
+
+    if (session.sessionType === SessionType.diagnostic) {
+      return {
+        sessionId: session.id,
+        sessionType: "diagnostic" as const,
+        status: session.status,
+        currentIndex: session.currentIndex,
+        totalItems: session.totalItems,
+        checkpointToken: session.checkpointToken,
+        currentTask: baseTaskPayload,
+      };
+    }
+
+    const persona = await this.learnerProgressService.getPersonaSnapshot(
+      input.learnerId,
+    );
+    const helpTemplate = await this.curriculumService.selectHelpTemplate({
+      taskType: currentTask.taskType,
+      sessionMode: session.sessionMode ?? SessionMode.steady_practice,
+      preferredHelpStyle:
+        persona.persona?.preferredHelpStyle ??
+        currentTask.hintTemplate?.helpKind ??
+        HelpKind.step_breakdown,
+      fallbackHintTemplateId: currentTask.hintTemplateId,
+    });
+
     return {
       sessionId: session.id,
+      sessionType: "daily_practice" as const,
       status: session.status,
+      sessionMode: session.sessionMode,
+      sessionModeLabel: this.getSessionModeLabel(
+        session.sessionMode ?? SessionMode.steady_practice,
+      ),
+      focusConceptId: session.focusConceptId,
+      focusConceptLabel: session.focusConcept?.learnerLabel ?? "",
       currentIndex: session.currentIndex,
       totalItems: session.totalItems,
       checkpointToken: session.checkpointToken,
-      currentItem: {
-        sessionItemId: currentSessionItem.id,
-        questionItemId: currentSessionItem.questionItem.id,
-        topicId: currentSessionItem.questionItem.topicId,
-        questionType: currentSessionItem.questionItem.questionType,
-        stem: currentSessionItem.questionItem.stem,
-        choices: this.readChoices(currentSessionItem.questionItem.choices),
-        inputMode: currentSessionItem.questionItem.inputMode,
+      currentTask: {
+        ...baseTaskPayload,
+        helpAvailable: Boolean(helpTemplate),
+        helpKind: helpTemplate?.helpKind ?? null,
+        helpLabel: helpTemplate ? "Need a hint?" : null,
       },
     };
   }
@@ -331,32 +390,15 @@ export class SessionService {
           orderBy: {
             sequenceOrder: "asc",
           },
-          include: {
-            questionItem: true,
-          },
         },
       },
     });
 
     if (!session) {
-      this.logger.warn(
-        JSON.stringify({
-          event: "answer_submit_invalid_session",
-          learnerId: input.learnerId,
-          sessionId: input.sessionId,
-        }),
-      );
       throw new NotFoundException("Invalid session");
     }
 
     if (session.status === SessionStatus.completed) {
-      this.logger.warn(
-        JSON.stringify({
-          event: "answer_submit_completed_session",
-          learnerId: input.learnerId,
-          sessionId: input.sessionId,
-        }),
-      );
       throw new ConflictException("Session completed");
     }
 
@@ -378,26 +420,9 @@ export class SessionService {
       });
 
       if (submittedItemAttempt) {
-        this.logger.warn(
-          JSON.stringify({
-            event: "answer_submit_duplicate_session_item",
-            learnerId: input.learnerId,
-            sessionId: input.sessionId,
-            sessionItemId: input.sessionItemId,
-          }),
-        );
         throw new ConflictException("Duplicate submit");
       }
 
-      this.logger.warn(
-        JSON.stringify({
-          event: "answer_submit_session_item_mismatch",
-          learnerId: input.learnerId,
-          sessionId: input.sessionId,
-          sessionItemId: input.sessionItemId,
-          expectedSessionItemId: currentSessionItem.id,
-        }),
-      );
       throw new ConflictException("Session item mismatch");
     }
 
@@ -411,25 +436,9 @@ export class SessionService {
       });
 
       if (existingAttempt) {
-        this.logger.warn(
-          JSON.stringify({
-            event: "answer_submit_duplicate_checkpoint",
-            learnerId: input.learnerId,
-            sessionId: input.sessionId,
-            sessionItemId: currentSessionItem.id,
-          }),
-        );
         throw new ConflictException("Duplicate submit");
       }
 
-      this.logger.warn(
-        JSON.stringify({
-          event: "answer_submit_stale_checkpoint",
-          learnerId: input.learnerId,
-          sessionId: input.sessionId,
-          sessionItemId: currentSessionItem.id,
-        }),
-      );
       throw new ConflictException("Stale submit");
     }
 
@@ -442,33 +451,54 @@ export class SessionService {
     });
 
     if (alreadyAnswered) {
-      this.logger.warn(
-        JSON.stringify({
-          event: "answer_submit_duplicate_confirmed_item",
-          learnerId: input.learnerId,
-          sessionId: input.sessionId,
-          sessionItemId: currentSessionItem.id,
-        }),
-      );
       throw new ConflictException("Duplicate submit");
     }
 
-    const normalizedAnswer = input.answerValue.trim();
-    const correctAnswer = currentSessionItem.questionItem.correctAnswer.trim();
-    const isCorrect = normalizedAnswer === correctAnswer;
+    const task = await this.curriculumService.getTaskById(
+      currentSessionItem.questionItemId,
+    );
+
+    if (!task) {
+      throw new NotFoundException("Programming task not found");
+    }
+
+    const isCorrect = this.evaluateAnswer({
+      answerFormat: task.answerFormat,
+      providedAnswer: input.answerValue,
+      correctAnswer: task.correctAnswer,
+    });
+    const primaryErrorTag = isCorrect ? null : this.resolvePrimaryErrorTag(task);
     const feedbackType = isCorrect
       ? FeedbackType.correct
-      : currentSessionItem.questionItem.supportedFeedbackType;
+      : (task.feedbackTemplate?.feedbackType ??
+        this.getFallbackFeedbackType(task.taskType));
+
+    const helpTemplate =
+      session.sessionType === SessionType.daily_practice && !isCorrect
+        ? await this.resolveHelpTemplate({
+            learnerId: input.learnerId,
+            task,
+            sessionMode: session.sessionMode ?? SessionMode.steady_practice,
+          })
+        : null;
 
     const nextStatus =
       session.currentIndex >= session.totalItems
         ? SessionStatus.completed
         : SessionStatus.in_progress;
-
     const nextCheckpointToken =
       nextStatus === SessionStatus.completed
         ? session.checkpointToken
         : this.createCheckpointToken();
+    const hadPreviousIncorrectInSession = Boolean(
+      await this.prisma.attempt.findFirst({
+        where: {
+          learnerId: input.learnerId,
+          sessionId: input.sessionId,
+          isCorrect: false,
+        },
+      }),
+    );
 
     await this.prisma.$transaction(async (tx) => {
       await tx.attempt.create({
@@ -476,17 +506,25 @@ export class SessionService {
           learnerId: input.learnerId,
           sessionId: input.sessionId,
           sessionItemId: currentSessionItem.id,
-          questionItemId: currentSessionItem.questionItem.id,
+          questionItemId: task.id,
+          answerValue: input.answerValue,
+          isCorrect,
           answerOutcome: isCorrect ? "correct" : "incorrect",
           attemptIndex: 1,
+          primaryErrorTag,
+          helpKindUsed: null,
         },
       });
 
-      await this.learnerProgressService.recordAttemptOutcome(tx, {
+      await this.learnerProgressService.recordProgrammingAttemptOutcome(tx, {
         learnerId: input.learnerId,
-        topicId: currentSessionItem.questionItem.topicId,
+        sessionId: session.id,
+        conceptId: task.conceptId,
+        taskType: task.taskType,
+        supportedErrorTags: task.supportedErrorTags,
         isCorrect,
-        supportedErrorTags: currentSessionItem.questionItem.supportedErrorTags,
+        primaryErrorTag,
+        sessionMode: session.sessionMode,
       });
 
       await tx.session.update({
@@ -507,33 +545,75 @@ export class SessionService {
 
       if (nextStatus === SessionStatus.completed) {
         await tx.examCycle.update({
-          where: {
-            id: session.examCycleId,
-          },
+          where: { id: session.examCycleId },
           data: {
             progressState: LearnerProgressState.today_available,
           },
         });
+
+        await this.learnerProgressService.markSessionCompleted(tx, {
+          learnerId: input.learnerId,
+          completedWithRecovery: hadPreviousIncorrectInSession || !isCorrect,
+        });
       }
     });
 
-    this.logger.log(
-      JSON.stringify({
-        event: "answer_submitted",
-        learnerId: input.learnerId,
-        sessionId: input.sessionId,
-        sessionItemId: currentSessionItem.id,
-        isCorrect,
-        sessionStatus: nextStatus,
-      }),
-    );
+    if (
+      nextStatus === SessionStatus.completed &&
+      session.sessionType === SessionType.daily_practice
+    ) {
+      const [correctCount, totalAttemptCount] = await Promise.all([
+        this.prisma.attempt.count({
+          where: {
+            learnerId: input.learnerId,
+            sessionId: session.id,
+            isCorrect: true,
+          },
+        }),
+        this.prisma.attempt.count({
+          where: {
+            learnerId: input.learnerId,
+            sessionId: session.id,
+          },
+        }),
+      ]);
 
-    return {
+      await this.telemetryService.recordEvent({
+        eventName: "tc_session_completed",
+        learnerId: input.learnerId,
+        route: `/session/${session.id}/summary`,
+        sessionId: session.id,
+        properties: {
+          sessionId: session.id,
+          sessionMode: session.sessionMode ?? SessionMode.steady_practice,
+          focusConceptId: session.focusConceptId ?? "",
+          completedTaskCount: session.totalItems,
+          correctCount,
+          incorrectCount: totalAttemptCount - correctCount,
+        },
+      });
+    }
+
+    const response = {
       isCorrect,
       feedbackType,
-      feedbackText: this.curriculumService.getFeedbackText(feedbackType),
+      feedbackText: this.curriculumService.getFeedbackText({
+        feedbackType,
+        templateText: task.feedbackTemplate?.templateText ?? null,
+      }),
       sessionStatus: nextStatus,
+      ...(helpTemplate
+        ? {
+            helpOffer: {
+              helpKind: helpTemplate.helpKind,
+              label: "Show hint",
+              text: helpTemplate.templateText,
+            },
+          }
+        : {}),
     };
+
+    return response;
   }
 
   async getSessionSummary(input: { learnerId: string; sessionId: string }) {
@@ -543,7 +623,12 @@ export class SessionService {
         learnerId: input.learnerId,
       },
       include: {
-        attempts: true,
+        focusConcept: true,
+        attempts: {
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
       },
     });
 
@@ -555,19 +640,273 @@ export class SessionService {
       throw new ConflictException("Session incomplete");
     }
 
-    const correctCount = session.attempts.filter(
-      (attempt) => attempt.answerOutcome === "correct",
-    ).length;
-
-    return {
-      sessionId: session.id,
+    const summaryCodes = deriveProgrammingSummaryCodes({
+      sessionMode: session.sessionMode,
       totalItems: session.totalItems,
-      correctCount,
-      incorrectCount: session.totalItems - correctCount,
+      attempts: session.attempts,
+    });
+
+    const payload = {
+      sessionId: session.id,
+      sessionMode: session.sessionMode,
+      focusConceptId: session.focusConceptId,
+      focusConceptLabel: session.focusConcept?.learnerLabel ?? "",
+      completedTaskCount: session.totalItems,
+      correctCount: summaryCodes.correctCount,
+      incorrectCount: summaryCodes.incorrectCount,
+      whatImproved: {
+        code: summaryCodes.whatImprovedCode,
+        label: this.getWhatImprovedLabel(summaryCodes.whatImprovedCode),
+        text: await this.getWhatImprovedText(summaryCodes.whatImprovedCode),
+      },
+      whatNeedsSupport: {
+        code: summaryCodes.whatNeedsSupportCode,
+        conceptId: session.focusConceptId ?? "",
+        label: this.getWhatNeedsSupportLabel(summaryCodes.whatNeedsSupportCode),
+        text: this.getWhatNeedsSupportText(summaryCodes.whatNeedsSupportCode),
+      },
+      studyPatternObserved: {
+        code: summaryCodes.studyPatternCode,
+        label: this.getStudyPatternLabel(summaryCodes.studyPatternCode),
+        text: await this.getStudyPatternText(summaryCodes.studyPatternCode),
+      },
+      nextBestAction: {
+        route: "/today",
+        label: "Back to Your Programming State",
+        text:
+          (await this.curriculumService.getSummaryTemplateText({
+            summaryField: "nextBestAction",
+            triggerCode: "return_to_programming_state",
+          })) || "Go back to Your Programming State for the next recommended step.",
+      },
     };
+
+    await this.telemetryService.recordEvent({
+      eventName: "tc_summary_viewed",
+      learnerId: input.learnerId,
+      route: `/session/${session.id}/summary`,
+      sessionId: session.id,
+      properties: {
+        sessionId: session.id,
+        sessionMode: session.sessionMode ?? SessionMode.steady_practice,
+        focusConceptId: session.focusConceptId ?? "",
+      },
+    });
+
+    return payload;
   }
 
-  private getActiveExamCycle(learnerId: string) {
+  private async resolveHelpTemplate(input: {
+    learnerId: string;
+    task: Awaited<ReturnType<CurriculumService["getTaskById"]>>;
+    sessionMode: SessionMode;
+  }) {
+    const persona = await this.learnerProgressService.getPersonaSnapshot(
+      input.learnerId,
+    );
+
+    return this.curriculumService.selectHelpTemplate({
+      taskType: input.task?.taskType ?? "",
+      sessionMode: input.sessionMode,
+      preferredHelpStyle:
+        persona.persona?.preferredHelpStyle ??
+        input.task?.hintTemplate?.helpKind ??
+        HelpKind.step_breakdown,
+      fallbackHintTemplateId: input.task?.hintTemplateId,
+    });
+  }
+
+  private async getWhatImprovedText(code: string) {
+    if (code === "concept_strengthened") {
+      return (
+        (await this.curriculumService.getSummaryTemplateText({
+          summaryField: "whatImproved",
+          triggerCode: code,
+        })) || "You answered more reliably on the focus concept in this session."
+      );
+    }
+
+    if (code === "debugging_recovery") {
+      return "You recovered after a mistake and kept moving through the session.";
+    }
+
+    return "You completed the session and kept your work moving forward.";
+  }
+
+  private getWhatImprovedLabel(code: string) {
+    if (code === "concept_strengthened") {
+      return "Concept strengthened";
+    }
+
+    if (code === "debugging_recovery") {
+      return "Debugging recovery";
+    }
+
+    return "Steady completion";
+  }
+
+  private getWhatNeedsSupportLabel(code: string) {
+    if (code === "syntax_still_fragile") {
+      return "Syntax still needs support";
+    }
+
+    if (code === "debugging_still_needs_structure") {
+      return "Debugging still needs structure";
+    }
+
+    return "Concept still needs support";
+  }
+
+  private getWhatNeedsSupportText(code: string) {
+    if (code === "syntax_still_fragile") {
+      return "Syntax-form mistakes still need a steadier pass in the next session.";
+    }
+
+    if (code === "debugging_still_needs_structure") {
+      return "Debugging still needs a more structured next step.";
+    }
+
+    return "This concept still needs one steadier pass in the next session.";
+  }
+
+  private getStudyPatternLabel(code: string) {
+    if (code === "recovered_after_mistake") {
+      return "Recovered after mistake";
+    }
+
+    if (code === "hesitated_but_completed") {
+      return "Completed after recovery";
+    }
+
+    if (code === "needed_hint_to_progress") {
+      return "Hint supported progress";
+    }
+
+    return "Steady throughout";
+  }
+
+  private async getStudyPatternText(code: string) {
+    if (code === "recovered_after_mistake") {
+      return (
+        (await this.curriculumService.getSummaryTemplateText({
+          summaryField: "studyPatternObserved",
+          triggerCode: code,
+        })) || "You kept going after a mistake and recovered within the same session."
+      );
+    }
+
+    if (code === "hesitated_but_completed") {
+      return "You completed a lighter recovery session and kept your work moving.";
+    }
+
+    if (code === "needed_hint_to_progress") {
+      return "A structured hint helped you move forward in this session.";
+    }
+
+    return "You moved through this session with steady momentum.";
+  }
+
+  private evaluateAnswer(input: {
+    answerFormat: string;
+    providedAnswer: string;
+    correctAnswer: string;
+  }) {
+    if (input.answerFormat === "short_text") {
+      return (
+        this.normalizeShortText(input.providedAnswer) ===
+        this.normalizeShortText(input.correctAnswer)
+      );
+    }
+
+    return input.providedAnswer.trim() === input.correctAnswer.trim();
+  }
+
+  private normalizeShortText(value: string) {
+    return value.trim().replace(/\s+/g, " ");
+  }
+
+  private resolvePrimaryErrorTag(task: {
+    taskType: string;
+    supportedErrorTags: Prisma.JsonValue;
+  }) {
+    const supportedTags = this.readErrorTags(task.supportedErrorTags);
+
+    if (supportedTags.length === 0) {
+      return null;
+    }
+
+    if (supportedTags.length === 1) {
+      return supportedTags[0];
+    }
+
+    if (
+      task.taskType === "bug_spotting" &&
+      supportedTags.includes(ProgrammingErrorTag.debugging_strategy_error)
+    ) {
+      return ProgrammingErrorTag.debugging_strategy_error;
+    }
+
+    if (
+      task.taskType === "code_completion" &&
+      supportedTags.includes(ProgrammingErrorTag.syntax_form_error)
+    ) {
+      return ProgrammingErrorTag.syntax_form_error;
+    }
+
+    if (
+      task.taskType === "trace_reasoning" ||
+      task.taskType === "output_prediction"
+    ) {
+      const traceErrorTag =
+        supportedTags.find(
+          (tag) =>
+            tag === ProgrammingErrorTag.value_tracking_error ||
+            tag === ProgrammingErrorTag.loop_control_error ||
+            tag === ProgrammingErrorTag.branch_logic_error,
+        ) ?? null;
+
+      return traceErrorTag;
+    }
+
+    return supportedTags[0] ?? null;
+  }
+
+  private getFallbackFeedbackType(taskType: string) {
+    if (taskType === "trace_reasoning") {
+      return FeedbackType.needs_another_check;
+    }
+
+    if (taskType === "bug_spotting" || taskType === "code_completion") {
+      return FeedbackType.try_fix;
+    }
+
+    return FeedbackType.needs_review;
+  }
+
+  private getSessionModeLabel(mode: SessionMode) {
+    const labels: Record<SessionMode, string> = {
+      steady_practice: "Steady practice",
+      concept_repair: "Concept repair",
+      debugging_drill: "Debugging drill",
+      recovery_mode: "Recovery mode",
+    };
+
+    return labels[mode];
+  }
+
+  private createCheckpointToken() {
+    return randomUUID();
+  }
+
+  private async getActiveExamCycle(learnerId: string) {
+    const profile = await this.prisma.programmingProfile.findUnique({
+      where: { learnerId },
+    });
+
+    if (!profile?.onboardingComplete) {
+      return null;
+    }
+
     return this.prisma.examCycle.findFirst({
       where: {
         learnerId,
@@ -579,15 +918,31 @@ export class SessionService {
     });
   }
 
-  private createCheckpointToken() {
-    return randomUUID();
-  }
-
-  private readChoices(choices: Prisma.JsonValue) {
+  private readChoiceObjects(choices: Prisma.JsonValue) {
     if (!Array.isArray(choices)) {
       return [];
     }
 
-    return choices.filter((choice): choice is string => typeof choice === "string");
+    return choices.filter(
+      (choice): choice is { choiceId: string; label: string } =>
+        Boolean(
+          choice &&
+            typeof choice === "object" &&
+            "choiceId" in choice &&
+            "label" in choice,
+        ),
+    );
+  }
+
+  private readErrorTags(input: Prisma.JsonValue) {
+    if (!Array.isArray(input)) {
+      return [];
+    }
+
+    return input.filter(
+      (value): value is ProgrammingErrorTag =>
+        typeof value === "string" &&
+        Object.values(ProgrammingErrorTag).includes(value as ProgrammingErrorTag),
+    );
   }
 }

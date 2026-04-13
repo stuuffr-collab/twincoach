@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AnswerInputSwitcher } from "@/src/components/answer-input-switcher";
 import { FeedbackCard } from "@/src/components/feedback-card";
@@ -13,10 +13,17 @@ import { StudentShell } from "@/src/components/student-shell";
 import {
   ApiError,
   fetchSession,
+  isDailyPracticeSession,
+  recordTelemetryEvent,
   submitAnswer,
   type AnswerSubmitResponse,
-  type SessionPayload,
+  type DailySessionPayload,
 } from "@/src/lib/api";
+import {
+  getHelpKindLabel,
+  getProgrammingTaskTypeLabel,
+  getSessionModeTone,
+} from "@/src/lib/programming-ui";
 
 export default function DailySessionPage() {
   const params = useParams<{ sessionId: string }>();
@@ -25,13 +32,16 @@ export default function DailySessionPage() {
     ? params.sessionId[0]
     : params.sessionId;
 
-  const [session, setSession] = useState<SessionPayload | null>(null);
+  const [session, setSession] = useState<DailySessionPayload | null>(null);
   const [answerValue, setAnswerValue] = useState("");
   const [feedback, setFeedback] = useState<AnswerSubmitResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAdvancing, setIsAdvancing] = useState(false);
+  const [isHelpVisible, setIsHelpVisible] = useState(false);
   const [error, setError] = useState("");
+  const taskPresentedAtRef = useRef<number | null>(null);
+  const firstActionAtRef = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -43,6 +53,11 @@ export default function DailySessionPage() {
           return;
         }
 
+        if (!isDailyPracticeSession(payload)) {
+          router.replace("/diagnostic");
+          return;
+        }
+
         setSession(payload);
       } catch (loadError) {
         if (loadError instanceof ApiError && loadError.message === "Session completed") {
@@ -51,7 +66,7 @@ export default function DailySessionPage() {
         }
 
         if (!cancelled) {
-          setError("Unable to load your daily session.");
+          setError("Unable to load your daily programming session.");
         }
       } finally {
         if (!cancelled) {
@@ -73,6 +88,49 @@ export default function DailySessionPage() {
     return Boolean(session && answerValue.trim().length > 0 && !feedback);
   }, [answerValue, feedback, session]);
 
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    taskPresentedAtRef.current = Date.now();
+    firstActionAtRef.current = null;
+
+    void recordTelemetryEvent({
+      eventName: "tc_session_task_viewed",
+      route: `/session/${session.sessionId}`,
+      sessionId: session.sessionId,
+      sessionItemId: session.currentTask.sessionItemId,
+      properties: {
+        sessionId: session.sessionId,
+        sessionMode: session.sessionMode,
+        sessionItemId: session.currentTask.sessionItemId,
+        taskId: session.currentTask.taskId,
+        conceptId: session.currentTask.conceptId,
+        taskType: session.currentTask.taskType,
+        currentIndex: session.currentIndex,
+        totalItems: session.totalItems,
+      },
+    }).catch(() => undefined);
+  }, [
+    session?.sessionId,
+    session?.sessionMode,
+    session?.currentIndex,
+    session?.totalItems,
+    session?.currentTask.conceptId,
+    session?.currentTask.sessionItemId,
+    session?.currentTask.taskId,
+    session?.currentTask.taskType,
+  ]);
+
+  function handleAnswerChange(nextValue: string) {
+    if (firstActionAtRef.current === null) {
+      firstActionAtRef.current = Date.now();
+    }
+
+    setAnswerValue(nextValue);
+  }
+
   async function handleSubmit() {
     if (!session || !canSubmit || isSubmitting) {
       return;
@@ -82,14 +140,38 @@ export default function DailySessionPage() {
     setError("");
 
     try {
+      const presentedAt = taskPresentedAtRef.current ?? Date.now();
       const response = await submitAnswer({
         sessionId: session.sessionId,
-        sessionItemId: session.currentItem.sessionItemId,
+        sessionItemId: session.currentTask.sessionItemId,
         answerValue,
         checkpointToken: session.checkpointToken,
       });
 
+      void recordTelemetryEvent({
+        eventName: "tc_session_answer_submitted",
+        route: `/session/${session.sessionId}`,
+        sessionId: session.sessionId,
+        sessionItemId: session.currentTask.sessionItemId,
+        properties: {
+          sessionId: session.sessionId,
+          sessionMode: session.sessionMode,
+          sessionItemId: session.currentTask.sessionItemId,
+          taskId: session.currentTask.taskId,
+          conceptId: session.currentTask.conceptId,
+          taskType: session.currentTask.taskType,
+          attemptCount: 1,
+          timeToFirstActionMs: Math.max(
+            0,
+            (firstActionAtRef.current ?? presentedAt) - presentedAt,
+          ),
+          timeToSubmitMs: Math.max(0, Date.now() - presentedAt),
+          isCorrect: response.isCorrect,
+        },
+      }).catch(() => undefined);
+
       setFeedback(response);
+      setIsHelpVisible(false);
     } catch (submitError) {
       if (submitError instanceof ApiError) {
         if (
@@ -130,16 +212,23 @@ export default function DailySessionPage() {
 
     try {
       const nextSession = await fetchSession(session.sessionId);
+
+      if (!isDailyPracticeSession(nextSession)) {
+        router.replace("/today");
+        return;
+      }
+
       setSession(nextSession);
       setAnswerValue("");
       setFeedback(null);
+      setIsHelpVisible(false);
     } catch (advanceError) {
       if (advanceError instanceof ApiError && advanceError.message === "Session completed") {
         router.replace(`/session/${session.sessionId}/summary`);
         return;
       }
 
-      setError("We couldn't load the next question yet. Try again.");
+      setError("We couldn't load the next practice step yet. Try again.");
     } finally {
       setIsAdvancing(false);
     }
@@ -152,9 +241,16 @@ export default function DailySessionPage() {
 
     try {
       const latestSession = await fetchSession(session.sessionId);
+
+      if (!isDailyPracticeSession(latestSession)) {
+        router.replace("/today");
+        return;
+      }
+
       setSession(latestSession);
       setAnswerValue("");
       setFeedback(null);
+      setIsHelpVisible(false);
       setError(nextError);
     } catch (recoveryError) {
       if (recoveryError instanceof ApiError && recoveryError.message === "Session completed") {
@@ -164,6 +260,36 @@ export default function DailySessionPage() {
 
       setError("We couldn't restore your saved session state. Refresh and try again.");
     }
+  }
+
+  function handleToggleHelp() {
+    const helpOffer = feedback?.helpOffer;
+
+    if (!helpOffer) {
+      return;
+    }
+
+    setIsHelpVisible((current) => {
+      const nextValue = !current;
+
+      if (nextValue && session) {
+        void recordTelemetryEvent({
+          eventName: "tc_session_help_revealed",
+          route: `/session/${session.sessionId}`,
+          sessionId: session.sessionId,
+          sessionItemId: session.currentTask.sessionItemId,
+          properties: {
+            sessionId: session.sessionId,
+            sessionItemId: session.currentTask.sessionItemId,
+            taskId: session.currentTask.taskId,
+            conceptId: session.currentTask.conceptId,
+            helpKind: helpOffer.helpKind,
+          },
+        }).catch(() => undefined);
+      }
+
+      return nextValue;
+    });
   }
 
   const primaryLabel = feedback
@@ -177,9 +303,9 @@ export default function DailySessionPage() {
   return (
     <StudentShell>
       <PageHeader
-        detail="You can pause and resume later without losing your place."
+        detail="This session stays focused on one short Python step at a time, and your progress is saved as you go."
         eyebrow="Today's session"
-        subtitle="Short guided practice to keep your exam plan moving."
+        subtitle="Guided daily practice shaped by your recent programming work."
         title="Keep your momentum going"
       />
 
@@ -187,8 +313,8 @@ export default function DailySessionPage() {
         <ProgressBar
           badgeText="Saved as you go"
           currentIndex={session.currentIndex}
-          label="Today's session"
-          supportingText="Focus on one question at a time. We'll handle the next step after each answer."
+          label={session.sessionModeLabel}
+          supportingText="Focus on one task, one correction, and one next step at a time."
           tone="session"
           totalItems={session.totalItems}
         />
@@ -197,7 +323,7 @@ export default function DailySessionPage() {
       <section className="flex flex-1 flex-col gap-4 px-4 py-4">
         {loading ? (
           <StatePanel
-            description="We're loading today's next saved practice step."
+            description="We're loading today's next saved Python practice step."
             eyebrow="Today's practice"
             title="Loading your guided practice..."
             tone="loading"
@@ -214,19 +340,45 @@ export default function DailySessionPage() {
         ) : null}
 
         {session ? (
-          <QuestionCard
-            eyebrow="Today's practice"
-            helper="Stay with this question only. Your progress is already being tracked."
-            stem={session.currentItem.stem}
-            tone="session"
-          >
-            <AnswerInputSwitcher
-              choices={session.currentItem.choices}
-              onChange={setAnswerValue}
-              questionType={session.currentItem.questionType}
-              value={answerValue}
-            />
-          </QuestionCard>
+          <>
+            <div className="rounded-[1.5rem] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
+              <div className="flex flex-wrap gap-2">
+                <span
+                  className={`inline-flex rounded-full border px-3 py-1.5 text-sm font-semibold ${getSessionModeTone(session.sessionMode)}`}
+                >
+                  {session.sessionModeLabel}
+                </span>
+                <span className="inline-flex rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-sm font-semibold text-[var(--text)] shadow-sm">
+                  Focus: {session.focusConceptLabel}
+                </span>
+              </div>
+              {session.currentTask.helpAvailable && !feedback ? (
+                <div className="mt-4 text-sm leading-6 text-[var(--text-muted)]">
+                  {session.currentTask.helpLabel ?? "Hint available"}:{" "}
+                  {session.currentTask.helpKind
+                    ? `${getHelpKindLabel(session.currentTask.helpKind)} support can appear after an incorrect answer if you need it.`
+                    : "A structured hint can appear after an incorrect answer if you need it."}
+                </div>
+              ) : null}
+            </div>
+
+            <QuestionCard
+              codeSnippet={session.currentTask.codeSnippet}
+              eyebrow="Today's task"
+              helper={session.currentTask.helperText}
+              stem={session.currentTask.prompt}
+              taskTypeLabel={getProgrammingTaskTypeLabel(session.currentTask.taskType)}
+              tone="session"
+            >
+              <AnswerInputSwitcher
+                answerFormat={session.currentTask.answerFormat}
+                choices={session.currentTask.choices}
+                onChange={handleAnswerChange}
+                taskType={session.currentTask.taskType}
+                value={answerValue}
+              />
+            </QuestionCard>
+          </>
         ) : null}
 
         {feedback ? (
@@ -235,6 +387,33 @@ export default function DailySessionPage() {
             feedbackText={feedback.feedbackText}
             feedbackType={feedback.feedbackType}
           />
+        ) : null}
+
+        {feedback?.helpOffer ? (
+          <div className="rounded-[1.5rem] border border-blue-200 bg-blue-50 p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-800">
+                  {getHelpKindLabel(feedback.helpOffer.helpKind)}
+                </div>
+                <div className="mt-2 text-sm leading-6 text-blue-900">
+                  Reveal a structured hint if you want one more nudge before moving on.
+                </div>
+              </div>
+              <button
+                className="rounded-full border border-blue-300 bg-white px-3 py-2 text-sm font-semibold text-blue-900 shadow-sm"
+                onClick={handleToggleHelp}
+                type="button"
+              >
+                {isHelpVisible ? "Hide hint" : feedback.helpOffer.label}
+              </button>
+            </div>
+            {isHelpVisible ? (
+              <div className="mt-4 rounded-2xl border border-blue-200 bg-white p-4 text-sm leading-6 text-[var(--text)] shadow-sm">
+                {feedback.helpOffer.text}
+              </div>
+            ) : null}
+          </div>
         ) : null}
       </section>
 

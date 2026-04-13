@@ -58,7 +58,7 @@ export default function AdminHomePage() {
     <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-4 px-4 py-6">
       <PageHeader
         title="Alpha Operator Tools"
-        subtitle="Use these tools to inspect learners, preview sessions, and deactivate bad items."
+        subtitle="Use these tools to inspect programming learners, preview guided sessions, and deactivate bad items if alpha safety requires it."
       />
 
       <form

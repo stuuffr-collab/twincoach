@@ -1,8 +1,18 @@
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
-import { LearnerProgressState, SessionStatus, SessionType } from "@prisma/client";
+import {
+  ComfortLevel,
+  HelpKind,
+  LearnerProgressState,
+  ProgrammingDifficultyArea,
+  ProgrammingExposure,
+  SessionStatus,
+  SessionType,
+} from "@prisma/client";
 import { CurriculumService } from "../curriculum/curriculum.service";
 import { LearnerProgressService } from "../learner/learner-progress.service";
+import { ProgrammingPlannerService } from "../learner/programming-planner.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { TelemetryService } from "../telemetry/telemetry.service";
 
 @Injectable()
 export class BootstrapService {
@@ -12,6 +22,8 @@ export class BootstrapService {
     private readonly prisma: PrismaService,
     private readonly curriculumService: CurriculumService,
     private readonly learnerProgressService: LearnerProgressService,
+    private readonly programmingPlannerService: ProgrammingPlannerService,
+    private readonly telemetryService: TelemetryService,
   ) {}
 
   async getBootState(learnerId?: string) {
@@ -26,12 +38,11 @@ export class BootstrapService {
       };
     }
 
-    const examCycle = await this.prisma.examCycle.findFirst({
+    const profile = await this.prisma.programmingProfile.findUnique({
       where: { learnerId },
-      orderBy: { createdAt: "desc" },
     });
 
-    if (!examCycle || !examCycle.onboardingComplete) {
+    if (!profile?.onboardingComplete) {
       return {
         learnerId,
         onboardingComplete: false,
@@ -43,7 +54,7 @@ export class BootstrapService {
     }
 
     const sessions = await this.prisma.session.findMany({
-      where: { learnerId, examCycleId: examCycle.id },
+      where: { learnerId },
       select: {
         sessionType: true,
         status: true,
@@ -52,66 +63,118 @@ export class BootstrapService {
 
     const hasActiveDiagnostic = sessions.some(
       (session) =>
-        session.sessionType === "diagnostic" && session.status !== "completed",
+        session.sessionType === SessionType.diagnostic &&
+        session.status !== SessionStatus.completed,
     );
-
     const hasCompletedDiagnostic = sessions.some(
       (session) =>
-        session.sessionType === "diagnostic" && session.status === "completed",
+        session.sessionType === SessionType.diagnostic &&
+        session.status === SessionStatus.completed,
     );
-
     const hasActiveDailySession = sessions.some(
-      (session) => session.sessionType === "daily" && session.status !== "completed",
+      (session) =>
+        session.sessionType === SessionType.daily_practice &&
+        session.status !== SessionStatus.completed,
     );
 
     return {
       learnerId,
-      onboardingComplete: examCycle.onboardingComplete,
+      onboardingComplete: true,
       hasActiveDiagnostic,
       hasCompletedDiagnostic,
       hasActiveDailySession,
-      nextRoute: this.resolveNextRoute({
-        onboardingComplete: examCycle.onboardingComplete,
-        hasActiveDiagnostic,
-        hasCompletedDiagnostic,
-        hasActiveDailySession,
-      }),
+      nextRoute: hasCompletedDiagnostic ? "/today" : "/diagnostic",
     };
   }
 
   async completeOnboarding(input: {
     learnerId?: string;
-    examDate: string;
-    activeUnitId: string;
+    priorProgrammingExposure: string;
+    currentComfortLevel: string;
+    biggestDifficulty: string;
+    preferredHelpStyle: string;
   }) {
-    const isValidActiveUnit = this.curriculumService
-      .getActiveUnits()
-      .some((unit) => unit.activeUnitId === input.activeUnitId);
-
-    if (!isValidActiveUnit) {
-      throw new BadRequestException("Invalid activeUnitId");
-    }
-
-    const learnerId = input.learnerId ?? (await this.createLearner()).id;
-
-    await this.prisma.examCycle.create({
-      data: {
-        learnerId,
-        examDate: new Date(input.examDate),
-        activeUnitId: input.activeUnitId,
-        onboardingComplete: true,
-        progressState: LearnerProgressState.onboarding_complete,
-      },
+    const learnerId = await this.ensureLearner(input.learnerId);
+    const now = new Date();
+    const activeExamCycle = await this.prisma.examCycle.findFirst({
+      where: { learnerId },
+      orderBy: { createdAt: "desc" },
     });
 
-    this.logger.log(
-      JSON.stringify({
-        event: "onboarding_completed",
-        learnerId,
-        activeUnitId: input.activeUnitId,
-        examDate: input.examDate,
-      }),
-    );
+    await this.prisma.$transaction(async (tx) => {
+      await tx.programmingProfile.upsert({
+        where: { learnerId },
+        update: {
+          priorProgrammingExposure:
+            input.priorProgrammingExposure as ProgrammingExposure,
+          currentComfortLevel: input.currentComfortLevel as ComfortLevel,
+          biggestDifficulty:
+            input.biggestDifficulty as ProgrammingDifficultyArea,
+          preferredHelpStyle: input.preferredHelpStyle as HelpKind,
+          onboardingComplete: true,
+          onboardingCompletedAt: now,
+        },
+        create: {
+          learnerId,
+          priorProgrammingExposure:
+            input.priorProgrammingExposure as ProgrammingExposure,
+          currentComfortLevel: input.currentComfortLevel as ComfortLevel,
+          biggestDifficulty:
+            input.biggestDifficulty as ProgrammingDifficultyArea,
+          preferredHelpStyle: input.preferredHelpStyle as HelpKind,
+          onboardingComplete: true,
+          onboardingCompletedAt: now,
+        },
+      });
+
+      await tx.learnerProgrammingPersona.upsert({
+        where: { learnerId },
+        update: {
+          modelVersion: "programming_persona_v1",
+          preferredHelpStyle: input.preferredHelpStyle as HelpKind,
+        },
+        create: {
+          learnerId,
+          modelVersion: "programming_persona_v1",
+          preferredHelpStyle: input.preferredHelpStyle as HelpKind,
+        },
+      });
+
+      if (activeExamCycle) {
+        await tx.examCycle.update({
+          where: { id: activeExamCycle.id },
+          data: {
+            examDate: now,
+            activeUnitId: this.curriculumService.getProgrammingUnitId(),
+            onboardingComplete: true,
+            progressState: LearnerProgressState.onboarding_complete,
+          },
+        });
+      } else {
+        await tx.examCycle.create({
+          data: {
+            learnerId,
+            examDate: now,
+            activeUnitId: this.curriculumService.getProgrammingUnitId(),
+            onboardingComplete: true,
+            progressState: LearnerProgressState.onboarding_complete,
+          },
+        });
+      }
+    });
+
+    await this.learnerProgressService.ensureProgrammingPersona(learnerId);
+    await this.telemetryService.recordEvent({
+      eventName: "tc_onboarding_completed",
+      learnerId,
+      route: "/onboarding",
+      properties: {
+        priorProgrammingExposure: input.priorProgrammingExposure,
+        currentComfortLevel: input.currentComfortLevel,
+        biggestDifficulty: input.biggestDifficulty,
+        preferredHelpStyle: input.preferredHelpStyle,
+      },
+    });
 
     return {
       learnerId,
@@ -121,24 +184,17 @@ export class BootstrapService {
   }
 
   async getTodaySummary(learnerId: string) {
-    const examCycle = await this.prisma.examCycle.findFirst({
-      where: {
-        learnerId,
-        onboardingComplete: true,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
+    const profile = await this.prisma.programmingProfile.findUnique({
+      where: { learnerId },
     });
 
-    if (!examCycle) {
+    if (!profile?.onboardingComplete) {
       throw new BadRequestException("Onboarding incomplete");
     }
 
     const completedDiagnostic = await this.prisma.session.findFirst({
       where: {
         learnerId,
-        examCycleId: examCycle.id,
         sessionType: SessionType.diagnostic,
         status: SessionStatus.completed,
       },
@@ -148,23 +204,17 @@ export class BootstrapService {
     if (!completedDiagnostic) {
       this.logger.warn(
         JSON.stringify({
-          event: "today_requested_before_diagnostic_complete",
+          event: "today_requested_before_programming_diagnostic_complete",
           learnerId,
-          examCycleId: examCycle.id,
         }),
       );
       throw new BadRequestException("Diagnostic incomplete");
     }
 
-    const readiness = await this.learnerProgressService.getReadinessSummary(
-      learnerId,
-    );
-
     const activeDailySession = await this.prisma.session.findFirst({
       where: {
         learnerId,
-        examCycleId: examCycle.id,
-        sessionType: SessionType.daily,
+        sessionType: SessionType.daily_practice,
         status: {
           in: [SessionStatus.generated, SessionStatus.in_progress],
         },
@@ -174,61 +224,57 @@ export class BootstrapService {
       },
     });
 
-    return {
-      examDate: this.toDateString(examCycle.examDate),
-      daysToExam: this.calculateDaysToExam(examCycle.examDate),
-      readinessBand: readiness.readinessBand,
+    const decision = await this.programmingPlannerService.getProgrammingState(
+      learnerId,
+    );
+
+    const payload = {
+      screenTitle: "Your Programming State",
+      programmingStateCode: decision.programmingStateCode,
+      programmingStateLabel: decision.programmingStateLabel,
+      focusConceptId: decision.focusConceptId,
+      focusConceptLabel: decision.focusConceptLabel,
+      sessionMode: decision.sessionMode,
+      sessionModeLabel: decision.sessionModeLabel,
+      rationaleCode: decision.rationaleCode,
+      rationaleText: decision.rationaleText,
+      nextStepText: decision.nextStepText,
       primaryActionLabel: activeDailySession
-        ? "Resume 10-Min Session"
-        : "Start 10-Min Session",
+        ? "Resume today's session"
+        : "Start today's session",
       hasActiveDailySession: Boolean(activeDailySession),
+      activeSessionId: activeDailySession?.id ?? null,
     };
+
+    await this.telemetryService.recordEvent({
+      eventName: "tc_programming_state_viewed",
+      learnerId,
+      route: "/today",
+      properties: {
+        focusConceptId: payload.focusConceptId,
+        sessionMode: payload.sessionMode,
+        hasActiveDailySession: payload.hasActiveDailySession,
+      },
+    });
+
+    return payload;
   }
 
-  private resolveNextRoute(state: {
-    onboardingComplete: boolean;
-    hasActiveDiagnostic: boolean;
-    hasCompletedDiagnostic: boolean;
-    hasActiveDailySession: boolean;
-  }) {
-    if (!state.onboardingComplete) {
-      return "/onboarding" as const;
+  private async ensureLearner(learnerId?: string) {
+    if (learnerId) {
+      const learner = await this.prisma.learner.upsert({
+        where: { id: learnerId },
+        update: {},
+        create: { id: learnerId },
+      });
+
+      return learner.id;
     }
 
-    if (state.hasActiveDiagnostic) {
-      return "/diagnostic" as const;
-    }
-
-    if (!state.hasCompletedDiagnostic) {
-      return "/diagnostic" as const;
-    }
-
-    return "/today" as const;
-  }
-
-  private createLearner() {
-    return this.prisma.learner.create({
+    const learner = await this.prisma.learner.create({
       data: {},
     });
-  }
 
-  private toDateString(date: Date) {
-    return date.toISOString().slice(0, 10);
-  }
-
-  private calculateDaysToExam(examDate: Date) {
-    const today = new Date();
-    const utcToday = Date.UTC(
-      today.getUTCFullYear(),
-      today.getUTCMonth(),
-      today.getUTCDate(),
-    );
-    const utcExamDate = Date.UTC(
-      examDate.getUTCFullYear(),
-      examDate.getUTCMonth(),
-      examDate.getUTCDate(),
-    );
-
-    return Math.max(0, Math.ceil((utcExamDate - utcToday) / 86_400_000));
+    return learner.id;
   }
 }

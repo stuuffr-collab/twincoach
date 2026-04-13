@@ -1,0 +1,85 @@
+[
+  {
+    "taskId": "py_practice_func_01",
+    "conceptId": "py_c04_functions",
+    "taskType": "output_prediction",
+    "modeTags": ["steady_practice", "concept_repair", "recovery_mode"],
+    "prompt": "What does this code print?",
+    "codeSnippet": "def greet():\n    return \"hi\"\n\nprint(greet())",
+    "choices": [
+      { "choiceId": "c1", "label": "greet" },
+      { "choiceId": "c2", "label": "hi" },
+      { "choiceId": "c3", "label": "None" },
+      { "choiceId": "c4", "label": "Error" }
+    ],
+    "answerFormat": "single_choice",
+    "correctAnswer": "c2",
+    "supportedErrorTags": ["function_usage_error"],
+    "hintTemplateId": "hint_concept_explanation_01",
+    "feedbackTemplateId": "feedback_needs_review_01",
+    "estimatedTimeSec": 50,
+    "difficulty": "easy",
+    "isActive": true
+  },
+  {
+    "taskId": "py_practice_func_02",
+    "conceptId": "py_c04_functions",
+    "taskType": "code_completion",
+    "modeTags": ["steady_practice", "concept_repair"],
+    "prompt": "Complete the function so it returns the input plus 1.",
+    "codeSnippet": "def add_one(value):\n    return ____",
+    "choices": [],
+    "answerFormat": "short_text",
+    "correctAnswer": "value + 1",
+    "supportedErrorTags": ["function_usage_error", "syntax_form_error"],
+    "hintTemplateId": "hint_worked_example_01",
+    "feedbackTemplateId": "feedback_try_fix_01",
+    "estimatedTimeSec": 55,
+    "difficulty": "easy",
+    "isActive": true
+  },
+  {
+    "taskId": "py_practice_func_03",
+    "conceptId": "py_c04_functions",
+    "taskType": "concept_choice",
+    "modeTags": ["steady_practice", "concept_repair"],
+    "prompt": "Which line calls a function named `show_total` with the value 8?",
+    "codeSnippet": null,
+    "choices": [
+      { "choiceId": "c1", "label": "show_total = 8" },
+      { "choiceId": "c2", "label": "show_total(8)" },
+      { "choiceId": "c3", "label": "def show_total(8):" },
+      { "choiceId": "c4", "label": "return show_total" }
+    ],
+    "answerFormat": "single_choice",
+    "correctAnswer": "c2",
+    "supportedErrorTags": ["function_usage_error"],
+    "hintTemplateId": "hint_concept_explanation_01",
+    "feedbackTemplateId": "feedback_needs_review_01",
+    "estimatedTimeSec": 40,
+    "difficulty": "easy",
+    "isActive": true
+  },
+  {
+    "taskId": "py_practice_func_04",
+    "conceptId": "py_c04_functions",
+    "taskType": "bug_spotting",
+    "modeTags": ["debugging_drill", "concept_repair"],
+    "prompt": "What is the most useful fix for this function?",
+    "codeSnippet": "def square(n):\nprint(n * n)",
+    "choices": [
+      { "choiceId": "c1", "label": "Indent the `print` line inside the function" },
+      { "choiceId": "c2", "label": "Change `square` to `print`" },
+      { "choiceId": "c3", "label": "Remove the parameter `n`" },
+      { "choiceId": "c4", "label": "Add another `print` above the function" }
+    ],
+    "answerFormat": "single_choice",
+    "correctAnswer": "c1",
+    "supportedErrorTags": ["syntax_form_error", "debugging_strategy_error"],
+    "hintTemplateId": "hint_debugging_hint_01",
+    "feedbackTemplateId": "feedback_try_fix_01",
+    "estimatedTimeSec": 60,
+    "difficulty": "medium",
+    "isActive": true
+  }
+]

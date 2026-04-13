@@ -41,9 +41,9 @@ export default function BootPage() {
   return (
     <StudentShell>
       <PageHeader
-        detail="New learners start with a short setup. Returning learners resume the right next step automatically."
+        detail="New learners start with a short setup. Returning learners resume the right programming step automatically."
         eyebrow="TwinCoach"
-        subtitle="Your personal exam coach for College Algebra."
+        subtitle="Your calm programming study twin for Python foundations."
         title="Start with a clear next step"
       />
       <section className="flex flex-1 flex-col gap-3 px-4 pb-6">
@@ -53,16 +53,16 @@ export default function BootPage() {
           </div>
           <div className="mt-3 flex flex-col gap-3 text-sm leading-6 text-[var(--text-muted)]">
             <div>
-              <span className="font-semibold text-[var(--text)]">1.</span> Set your exam date
-              and current unit.
+              <span className="font-semibold text-[var(--text)]">1.</span> Set your starting
+              programming profile.
             </div>
             <div>
               <span className="font-semibold text-[var(--text)]">2.</span> Complete a short
-              diagnostic to build your first plan.
+              diagnostic to build your first programming state.
             </div>
             <div>
               <span className="font-semibold text-[var(--text)]">3.</span> Follow today's
-              guided session one step at a time.
+              guided Python session one step at a time.
             </div>
           </div>
         </div>

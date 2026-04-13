@@ -1,0 +1,85 @@
+[
+  {
+    "taskId": "py_practice_loop_01",
+    "conceptId": "py_c03_loops",
+    "taskType": "output_prediction",
+    "modeTags": ["steady_practice", "concept_repair", "recovery_mode"],
+    "prompt": "What does this code print?",
+    "codeSnippet": "for n in [1, 2]:\n    print(n)",
+    "choices": [
+      { "choiceId": "c1", "label": "1 then 2" },
+      { "choiceId": "c2", "label": "2 only" },
+      { "choiceId": "c3", "label": "1 only" },
+      { "choiceId": "c4", "label": "12 on one line" }
+    ],
+    "answerFormat": "single_choice",
+    "correctAnswer": "c1",
+    "supportedErrorTags": ["loop_control_error"],
+    "hintTemplateId": "hint_step_breakdown_01",
+    "feedbackTemplateId": "feedback_needs_review_01",
+    "estimatedTimeSec": 45,
+    "difficulty": "easy",
+    "isActive": true
+  },
+  {
+    "taskId": "py_practice_loop_02",
+    "conceptId": "py_c03_loops",
+    "taskType": "trace_reasoning",
+    "modeTags": ["steady_practice", "concept_repair", "debugging_drill"],
+    "prompt": "What is the final value of `count`?",
+    "codeSnippet": "count = 0\nfor n in [3, 4]:\n    count = count + 1",
+    "choices": [
+      { "choiceId": "c1", "label": "1" },
+      { "choiceId": "c2", "label": "2" },
+      { "choiceId": "c3", "label": "7" },
+      { "choiceId": "c4", "label": "0" }
+    ],
+    "answerFormat": "single_choice",
+    "correctAnswer": "c2",
+    "supportedErrorTags": ["loop_control_error", "value_tracking_error"],
+    "hintTemplateId": "hint_step_breakdown_01",
+    "feedbackTemplateId": "feedback_needs_another_check_01",
+    "estimatedTimeSec": 55,
+    "difficulty": "medium",
+    "isActive": true
+  },
+  {
+    "taskId": "py_practice_loop_03",
+    "conceptId": "py_c03_loops",
+    "taskType": "bug_spotting",
+    "modeTags": ["debugging_drill", "concept_repair"],
+    "prompt": "Which change makes the loop count from 0 to 2 correctly?",
+    "codeSnippet": "for n in range(3)\n    print(n)",
+    "choices": [
+      { "choiceId": "c1", "label": "Add `:` after `range(3)`" },
+      { "choiceId": "c2", "label": "Remove `print(n)`" },
+      { "choiceId": "c3", "label": "Change `3` to `2`" },
+      { "choiceId": "c4", "label": "Move `for` below `print`" }
+    ],
+    "answerFormat": "single_choice",
+    "correctAnswer": "c1",
+    "supportedErrorTags": ["syntax_form_error", "debugging_strategy_error"],
+    "hintTemplateId": "hint_debugging_hint_01",
+    "feedbackTemplateId": "feedback_try_fix_01",
+    "estimatedTimeSec": 60,
+    "difficulty": "medium",
+    "isActive": true
+  },
+  {
+    "taskId": "py_practice_loop_04",
+    "conceptId": "py_c03_loops",
+    "taskType": "code_completion",
+    "modeTags": ["steady_practice", "concept_repair"],
+    "prompt": "Fill in the number so the loop runs 4 times.",
+    "codeSnippet": "for n in range(____):\n    print(n)",
+    "choices": [],
+    "answerFormat": "short_text",
+    "correctAnswer": "4",
+    "supportedErrorTags": ["loop_control_error"],
+    "hintTemplateId": "hint_worked_example_01",
+    "feedbackTemplateId": "feedback_try_fix_01",
+    "estimatedTimeSec": 45,
+    "difficulty": "easy",
+    "isActive": true
+  }
+]

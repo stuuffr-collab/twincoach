@@ -22,29 +22,121 @@ export type BootState = {
   nextRoute: "/onboarding" | "/diagnostic" | "/today";
 };
 
-export type ActiveUnit = {
-  activeUnitId: string;
-  sequenceOrder: number;
-  learnerFacingLabel: string;
+export type PriorProgrammingExposure =
+  | "none"
+  | "school_basics"
+  | "self_taught_basics"
+  | "completed_intro_course";
+
+export type CurrentComfortLevel = "very_low" | "low" | "medium";
+
+export type BiggestDifficulty =
+  | "reading_code"
+  | "writing_syntax"
+  | "tracing_logic"
+  | "debugging_errors";
+
+export type HelpKind =
+  | "step_breakdown"
+  | "worked_example"
+  | "debugging_hint"
+  | "concept_explanation";
+
+export type ProgrammingTaskType =
+  | "output_prediction"
+  | "trace_reasoning"
+  | "bug_spotting"
+  | "code_completion"
+  | "concept_choice";
+
+export type AnswerFormat = "single_choice" | "short_text";
+
+export type SessionMode =
+  | "steady_practice"
+  | "concept_repair"
+  | "debugging_drill"
+  | "recovery_mode";
+
+export type ProgrammingStateCode =
+  | "building_foundations"
+  | "debugging_focus"
+  | "steady_progress"
+  | "recovery_needed";
+
+export type RationaleCode =
+  | "recent_concept_errors"
+  | "repeated_debugging_errors"
+  | "strong_recent_progress"
+  | "recent_dropoff";
+
+export type MomentumState = "unknown" | "low" | "steady" | "strong";
+export type StabilityState = "unknown" | "fragile" | "developing" | "steady";
+export type ResilienceState = "unknown" | "fragile" | "recovering" | "steady";
+export type MasteryState = "unknown" | "emerging" | "steady";
+
+export type ProgrammingErrorTag =
+  | "syntax_form_error"
+  | "value_tracking_error"
+  | "branch_logic_error"
+  | "loop_control_error"
+  | "function_usage_error"
+  | "debugging_strategy_error";
+
+export type ProgrammingTaskChoice = {
+  choiceId: string;
+  label: string;
 };
 
-export type CurrentItem = {
+export type ProgrammingTaskBase = {
   sessionItemId: string;
-  questionItemId: string;
-  topicId: string;
-  questionType: "multiple_choice" | "numeric_input" | "expression_choice";
-  stem: string;
-  choices: string[];
-  inputMode: string;
+  taskId: string;
+  conceptId: string;
+  taskType: ProgrammingTaskType;
+  prompt: string;
+  codeSnippet: string | null;
+  choices: ProgrammingTaskChoice[];
+  answerFormat: AnswerFormat;
+  helperText: string;
 };
 
-export type SessionPayload = {
+export type DiagnosticTaskPayload = ProgrammingTaskBase;
+
+export type DailyTaskPayload = ProgrammingTaskBase & {
+  helpAvailable: boolean;
+  helpKind: HelpKind | null;
+  helpLabel: string | null;
+};
+
+export type DiagnosticSessionPayload = {
   sessionId: string;
+  sessionType: "diagnostic";
   status: "generated" | "in_progress" | "completed";
   currentIndex: number;
   totalItems: number;
   checkpointToken: string;
-  currentItem: CurrentItem;
+  currentTask: DiagnosticTaskPayload;
+};
+
+export type DailySessionPayload = {
+  sessionId: string;
+  sessionType: "daily_practice";
+  status: "generated" | "in_progress" | "completed";
+  sessionMode: SessionMode;
+  sessionModeLabel: string;
+  focusConceptId: string | null;
+  focusConceptLabel: string;
+  currentIndex: number;
+  totalItems: number;
+  checkpointToken: string;
+  currentTask: DailyTaskPayload;
+};
+
+export type SessionPayload = DiagnosticSessionPayload | DailySessionPayload;
+
+export type HelpOffer = {
+  helpKind: HelpKind;
+  label: string;
+  text: string;
 };
 
 export type AnswerSubmitResponse = {
@@ -56,73 +148,170 @@ export type AnswerSubmitResponse = {
     | "needs_another_check";
   feedbackText: string;
   sessionStatus: "generated" | "in_progress" | "completed";
+  helpOffer?: HelpOffer;
 };
 
-export type TodaySummary = {
-  examDate: string;
-  daysToExam: number;
-  readinessBand: string;
-  primaryActionLabel: string;
+export type OnboardingPayload = {
+  priorProgrammingExposure: PriorProgrammingExposure;
+  currentComfortLevel: CurrentComfortLevel;
+  biggestDifficulty: BiggestDifficulty;
+  preferredHelpStyle: HelpKind;
+};
+
+export type OnboardingResponse = {
+  learnerId: string;
+  onboardingComplete: boolean;
+  nextRoute: "/diagnostic";
+};
+
+export type ProgrammingState = {
+  screenTitle: "Your Programming State";
+  programmingStateCode: ProgrammingStateCode;
+  programmingStateLabel: string;
+  focusConceptId: string;
+  focusConceptLabel: string;
+  sessionMode: SessionMode;
+  sessionModeLabel: string;
+  rationaleCode: RationaleCode;
+  rationaleText: string;
+  nextStepText: string;
+  primaryActionLabel: "Start today's session" | "Resume today's session";
   hasActiveDailySession: boolean;
+  activeSessionId: string | null;
 };
 
 export type SessionSummary = {
   sessionId: string;
-  totalItems: number;
+  sessionMode: SessionMode | null;
+  focusConceptId: string | null;
+  focusConceptLabel: string;
+  completedTaskCount: number;
   correctCount: number;
   incorrectCount: number;
-};
-
-export type AdminLearnerLookup = {
-  learnerId: string;
-  onboardingComplete: boolean;
-  progressState: string;
-  activeUnitId: string;
-  readinessBand: string;
-  activeDiagnosticSessionId: string;
-  activeDailySessionId: string;
-  topicStates: Array<{
-    topicId: string;
-    topicTitle: string;
-    masteryState: string;
-    prereqRiskState: string;
-    validEvidenceCount: number;
-    nextReviewDueAt: string;
-  }>;
-  recentAttempts: Array<{
-    sessionId: string;
-    sessionItemId: string;
-    questionItemId: string;
-    answerOutcome: string;
-    createdAt: string;
-  }>;
+  whatImproved: {
+    code: string;
+    label: string;
+    text: string;
+  };
+  whatNeedsSupport: {
+    code: string;
+    conceptId: string;
+    label: string;
+    text: string;
+  };
+  studyPatternObserved: {
+    code: string;
+    label: string;
+    text: string;
+  };
+  nextBestAction: {
+    route: "/today";
+    label: string;
+    text: string;
+  };
 };
 
 export type AdminRecentLearner = {
   learnerId: string;
-  progressState: string;
-  activeUnitId: string;
-  readinessBand: string;
+  focusConceptId: string;
+  focusConceptLabel: string;
+  sessionMode: SessionMode | null;
+  sessionMomentumState: MomentumState;
   activeDiagnosticSessionId: string;
   activeDailySessionId: string;
   lastActivityAt: string;
 };
 
+export type AdminLearnerLookup = {
+  learnerId: string;
+  onboardingProfile: {
+    priorProgrammingExposure: PriorProgrammingExposure;
+    currentComfortLevel: CurrentComfortLevel;
+    biggestDifficulty: BiggestDifficulty;
+    preferredHelpStyle: HelpKind;
+  } | null;
+  personaSnapshot: {
+    focusConceptId: string;
+    focusConceptLabel: string;
+    preferredHelpStyle: HelpKind | "";
+    syntaxStabilityState: StabilityState;
+    logicTracingState: StabilityState;
+    debuggingResilienceState: ResilienceState;
+    sessionMomentumState: MomentumState;
+    conceptStates: Array<{
+      conceptId: string;
+      conceptLabel: string;
+      masteryState: MasteryState;
+      recentErrorTag: ProgrammingErrorTag | null;
+      lastObservedAt: string;
+    }>;
+  };
+  activeDiagnosticSessionId: string;
+  activeDailySessionId: string;
+  recentErrorTags: Array<{
+    primaryErrorTag: ProgrammingErrorTag | null;
+    createdAt: string;
+    sessionId: string;
+    sessionItemId: string;
+  }>;
+  latestSummarySnapshot: {
+    sessionId: string;
+    sessionMode: SessionMode | null;
+    focusConceptId: string;
+    focusConceptLabel: string;
+    completedAt: string;
+    whatImproved: {
+      code: string;
+    };
+    whatNeedsSupport: {
+      code: string;
+    };
+    studyPatternObserved: {
+      code: string;
+    };
+  } | null;
+};
+
 export type AdminSessionPreview = {
   sessionId: string;
   sessionType: string;
+  sessionMode: SessionMode | null;
+  focusConceptId: string | null;
+  focusConceptLabel: string;
   status: string;
   currentIndex: number;
   totalItems: number;
   items: Array<{
     sessionItemId: string;
     sequenceOrder: number;
-    slotType: string;
-    questionItemId: string;
-    topicId: string;
+    taskId: string;
+    conceptId: string;
+    conceptLabel: string;
+    taskType: ProgrammingTaskType;
     isActive: boolean;
   }>;
 };
+
+export type TelemetryEventName =
+  | "tc_diagnostic_task_viewed"
+  | "tc_diagnostic_answer_submitted"
+  | "tc_session_task_viewed"
+  | "tc_session_answer_submitted"
+  | "tc_session_help_revealed";
+
+export type TelemetryEventRequest = {
+  eventName: TelemetryEventName;
+  route: string;
+  sessionId?: string;
+  sessionItemId?: string;
+  properties: Record<string, string | number | boolean | null>;
+};
+
+export function isDailyPracticeSession(
+  payload: SessionPayload,
+): payload is DailySessionPayload {
+  return payload.sessionType === "daily_practice";
+}
 
 export async function fetchBootState(): Promise<BootState> {
   const learnerId = getLearnerId();
@@ -144,7 +333,30 @@ export async function fetchBootState(): Promise<BootState> {
   return payload;
 }
 
-export async function createOrResumeDiagnostic(): Promise<SessionPayload> {
+export async function submitOnboarding(
+  input: OnboardingPayload,
+): Promise<OnboardingResponse> {
+  const learnerId = getLearnerId();
+  const response = await fetch(`${getApiBaseUrl()}/onboarding/complete`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(learnerId ? { "x-learner-id": learnerId } : {}),
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    throw await createApiError(response, "Failed to save onboarding");
+  }
+
+  const payload = (await response.json()) as OnboardingResponse;
+  setLearnerId(payload.learnerId);
+
+  return payload;
+}
+
+export async function createOrResumeDiagnostic(): Promise<DiagnosticSessionPayload> {
   const learnerId = getLearnerId();
   const response = await fetch(`${getApiBaseUrl()}/diagnostic/create-or-resume`, {
     method: "POST",
@@ -152,10 +364,13 @@ export async function createOrResumeDiagnostic(): Promise<SessionPayload> {
   });
 
   if (!response.ok) {
-    throw await createApiError(response, "Failed to create or resume diagnostic");
+    throw await createApiError(
+      response,
+      "Failed to create or resume diagnostic",
+    );
   }
 
-  return response.json();
+  return (await response.json()) as DiagnosticSessionPayload;
 }
 
 export async function fetchSession(sessionId: string): Promise<SessionPayload> {
@@ -169,10 +384,10 @@ export async function fetchSession(sessionId: string): Promise<SessionPayload> {
     throw await createApiError(response, "Failed to fetch session");
   }
 
-  return response.json();
+  return (await response.json()) as SessionPayload;
 }
 
-export async function createOrResumeDailySession(): Promise<SessionPayload> {
+export async function createOrResumeDailySession(): Promise<DailySessionPayload> {
   const learnerId = getLearnerId();
   const response = await fetch(`${getApiBaseUrl()}/session/create-or-resume`, {
     method: "POST",
@@ -180,10 +395,13 @@ export async function createOrResumeDailySession(): Promise<SessionPayload> {
   });
 
   if (!response.ok) {
-    throw await createApiError(response, "Failed to create or resume daily session");
+    throw await createApiError(
+      response,
+      "Failed to create or resume daily session",
+    );
   }
 
-  return response.json();
+  return (await response.json()) as DailySessionPayload;
 }
 
 export async function submitAnswer(input: {
@@ -191,7 +409,7 @@ export async function submitAnswer(input: {
   sessionItemId: string;
   answerValue: string;
   checkpointToken: string;
-}) {
+}): Promise<AnswerSubmitResponse> {
   const learnerId = getLearnerId();
   const response = await fetch(`${getApiBaseUrl()}/session/${input.sessionId}/answer`, {
     method: "POST",
@@ -213,36 +431,7 @@ export async function submitAnswer(input: {
   return (await response.json()) as AnswerSubmitResponse;
 }
 
-export async function submitOnboarding(input: {
-  examDate: string;
-  activeUnitId: string;
-}) {
-  const learnerId = getLearnerId();
-  const response = await fetch(`${getApiBaseUrl()}/onboarding/complete`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(learnerId ? { "x-learner-id": learnerId } : {}),
-    },
-    body: JSON.stringify(input),
-  });
-
-  if (!response.ok) {
-    throw await createApiError(response, "Failed to save onboarding");
-  }
-
-  const payload = (await response.json()) as {
-    learnerId: string;
-    onboardingComplete: boolean;
-    nextRoute: "/diagnostic";
-  };
-
-  setLearnerId(payload.learnerId);
-
-  return payload;
-}
-
-export async function fetchTodaySummary(): Promise<TodaySummary> {
+export async function fetchTodaySummary(): Promise<ProgrammingState> {
   const learnerId = getLearnerId();
   const response = await fetch(`${getApiBaseUrl()}/today`, {
     cache: "no-store",
@@ -250,10 +439,10 @@ export async function fetchTodaySummary(): Promise<TodaySummary> {
   });
 
   if (!response.ok) {
-    throw await createApiError(response, "Failed to load today summary");
+    throw await createApiError(response, "Failed to load programming state");
   }
 
-  return response.json();
+  return (await response.json()) as ProgrammingState;
 }
 
 export async function fetchSessionSummary(
@@ -269,19 +458,30 @@ export async function fetchSessionSummary(
     throw await createApiError(response, "Failed to load session summary");
   }
 
-  return response.json();
+  return (await response.json()) as SessionSummary;
 }
 
-export async function fetchActiveUnits(): Promise<ActiveUnit[]> {
-  const response = await fetch("/api/mock/active-units", {
-    cache: "no-store",
+export async function recordTelemetryEvent(
+  input: TelemetryEventRequest,
+): Promise<void> {
+  const learnerId = getLearnerId();
+
+  if (!learnerId) {
+    return;
+  }
+
+  const response = await fetch(`${getApiBaseUrl()}/telemetry`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-learner-id": learnerId,
+    },
+    body: JSON.stringify(input),
   });
 
   if (!response.ok) {
-    throw new Error("Failed to load active units");
+    throw await createApiError(response, "Failed to record telemetry");
   }
-
-  return response.json();
 }
 
 export async function fetchAdminLearner(
@@ -373,8 +573,14 @@ function getApiBaseUrl() {
 
 async function createApiError(response: Response, fallbackMessage: string) {
   try {
-    const payload = (await response.json()) as { message?: string };
-    return new ApiError(payload.message ?? fallbackMessage, response.status);
+    const payload = (await response.json()) as {
+      message?: string | string[];
+    };
+    const message = Array.isArray(payload.message)
+      ? payload.message.join(", ")
+      : payload.message;
+
+    return new ApiError(message ?? fallbackMessage, response.status);
   } catch {
     return new ApiError(fallbackMessage, response.status);
   }

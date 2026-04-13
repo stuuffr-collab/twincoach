@@ -36,37 +36,85 @@ export class BootstrapController {
     @Headers("x-learner-id") learnerId: string | undefined,
     @Body()
     body: {
-      examDate?: string;
-      activeUnitId?: string;
+      priorProgrammingExposure?: string;
+      currentComfortLevel?: string;
+      biggestDifficulty?: string;
+      preferredHelpStyle?: string;
     },
   ) {
-    if (!body.examDate || !isValidCalendarDate(body.examDate)) {
-      throw new BadRequestException("Invalid examDate");
+    const allowedKeys = [
+      "priorProgrammingExposure",
+      "currentComfortLevel",
+      "biggestDifficulty",
+      "preferredHelpStyle",
+    ];
+
+    const bodyKeys = Object.keys(body);
+
+    if (
+      bodyKeys.length !== allowedKeys.length ||
+      bodyKeys.some((key) => !allowedKeys.includes(key))
+    ) {
+      throw new BadRequestException("Invalid onboarding payload");
     }
 
-    if (!body.activeUnitId) {
-      throw new BadRequestException("Invalid activeUnitId");
+    if (
+      !isAllowedValue(body.priorProgrammingExposure, [
+        "none",
+        "school_basics",
+        "self_taught_basics",
+        "completed_intro_course",
+      ])
+    ) {
+      throw new BadRequestException("Invalid priorProgrammingExposure");
     }
+
+    if (
+      !isAllowedValue(body.currentComfortLevel, ["very_low", "low", "medium"])
+    ) {
+      throw new BadRequestException("Invalid currentComfortLevel");
+    }
+
+    if (
+      !isAllowedValue(body.biggestDifficulty, [
+        "reading_code",
+        "writing_syntax",
+        "tracing_logic",
+        "debugging_errors",
+      ])
+    ) {
+      throw new BadRequestException("Invalid biggestDifficulty");
+    }
+
+    if (
+      !isAllowedValue(body.preferredHelpStyle, [
+        "step_breakdown",
+        "worked_example",
+        "debugging_hint",
+        "concept_explanation",
+      ])
+    ) {
+      throw new BadRequestException("Invalid preferredHelpStyle");
+    }
+
+    const priorProgrammingExposure = body.priorProgrammingExposure!;
+    const currentComfortLevel = body.currentComfortLevel!;
+    const biggestDifficulty = body.biggestDifficulty!;
+    const preferredHelpStyle = body.preferredHelpStyle!;
 
     return this.bootstrapService.completeOnboarding({
       learnerId,
-      examDate: body.examDate,
-      activeUnitId: body.activeUnitId,
+      priorProgrammingExposure,
+      currentComfortLevel,
+      biggestDifficulty,
+      preferredHelpStyle,
     });
   }
 }
 
-function isValidCalendarDate(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return false;
-  }
-
-  const [year, month, day] = value.split("-").map(Number);
-  const parsed = new Date(Date.UTC(year, month - 1, day));
-
-  return (
-    parsed.getUTCFullYear() === year &&
-    parsed.getUTCMonth() === month - 1 &&
-    parsed.getUTCDate() === day
-  );
+function isAllowedValue(
+  value: string | undefined,
+  allowedValues: string[],
+) {
+  return Boolean(value && allowedValues.includes(value));
 }

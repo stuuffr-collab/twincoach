@@ -1,0 +1,34 @@
+[
+  {
+    "hintTemplateId": "hint_step_breakdown_01",
+    "helpKind": "step_breakdown",
+    "label": "Show hint",
+    "templateText": "Trace one line at a time and update the value after each step.",
+    "allowedTaskTypes": ["output_prediction", "trace_reasoning", "code_completion"],
+    "allowedModes": ["steady_practice", "concept_repair", "recovery_mode", "debugging_drill"]
+  },
+  {
+    "hintTemplateId": "hint_worked_example_01",
+    "helpKind": "worked_example",
+    "label": "Show hint",
+    "templateText": "Compare your code to a simpler example with one input and one output.",
+    "allowedTaskTypes": ["code_completion", "concept_choice"],
+    "allowedModes": ["steady_practice", "concept_repair"]
+  },
+  {
+    "hintTemplateId": "hint_debugging_hint_01",
+    "helpKind": "debugging_hint",
+    "label": "Show hint",
+    "templateText": "Look for the smallest change that would make this line valid Python first.",
+    "allowedTaskTypes": ["bug_spotting", "trace_reasoning", "output_prediction"],
+    "allowedModes": ["debugging_drill", "concept_repair", "recovery_mode"]
+  },
+  {
+    "hintTemplateId": "hint_concept_explanation_01",
+    "helpKind": "concept_explanation",
+    "label": "Show hint",
+    "templateText": "Focus on the rule this concept follows before choosing an answer.",
+    "allowedTaskTypes": ["concept_choice", "output_prediction"],
+    "allowedModes": ["steady_practice", "concept_repair", "recovery_mode"]
+  }
+]

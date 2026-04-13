@@ -1,92 +1,174 @@
+import {
+  FeedbackType,
+  HelpKind,
+  ProgrammingTaskSetRole,
+  SessionMode,
+} from "@prisma/client";
 import { Injectable } from "@nestjs/common";
-import { FeedbackType, QuestionType } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
-import seedPack from "../../../../../content/seed_ready_content_fixture_pack_ca05_v1.json";
+
+const GENERIC_FEEDBACK: Record<FeedbackType, string> = {
+  correct: "Correct.",
+  needs_review: "That answer is not correct. Review the main idea before moving on.",
+  try_fix: "That answer is not correct. Check the key step and try one fix.",
+  needs_another_check:
+    "That answer is not correct. We need one more careful check before moving on.",
+};
 
 @Injectable()
 export class CurriculumService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async seedWeekOneContent() {
-    for (const topic of seedPack.topics) {
-      await this.prisma.topic.upsert({
-        where: { id: topic.topicId },
-        update: {
-          title: topic.title,
-          sequenceOrder: topic.sequenceOrder,
-          examWeight: topic.examWeight,
-          isActive: topic.isActive,
+  getProgrammingUnitId() {
+    return "python_cs1_v1";
+  }
+
+  async getProgrammingConcepts() {
+    return this.prisma.programmingConcept.findMany({
+      where: { isActive: true },
+      orderBy: { sequenceOrder: "asc" },
+    });
+  }
+
+  async getDiagnosticTasks() {
+    return this.prisma.programmingTask.findMany({
+      where: {
+        taskSetRole: ProgrammingTaskSetRole.diagnostic,
+        isActive: true,
+      },
+      include: {
+        concept: true,
+        hintTemplate: true,
+        feedbackTemplate: true,
+      },
+      orderBy: {
+        concept: {
+          sequenceOrder: "asc",
         },
-        create: {
-          id: topic.topicId,
-          title: topic.title,
-          sequenceOrder: topic.sequenceOrder,
-          examWeight: topic.examWeight,
-          isActive: topic.isActive,
+      },
+    });
+  }
+
+  async getPracticeTasks() {
+    return this.prisma.programmingTask.findMany({
+      where: {
+        taskSetRole: ProgrammingTaskSetRole.practice,
+        isActive: true,
+      },
+      include: {
+        concept: true,
+        hintTemplate: true,
+        feedbackTemplate: true,
+      },
+      orderBy: [
+        {
+          concept: {
+            sequenceOrder: "asc",
+          },
         },
-      });
+        {
+          id: "asc",
+        },
+      ],
+    });
+  }
+
+  async getTaskById(taskId: string) {
+    return this.prisma.programmingTask.findUnique({
+      where: { id: taskId },
+      include: {
+        concept: true,
+        hintTemplate: true,
+        feedbackTemplate: true,
+      },
+    });
+  }
+
+  async getTasksByIds(taskIds: string[]) {
+    const tasks = await this.prisma.programmingTask.findMany({
+      where: {
+        id: {
+          in: taskIds,
+        },
+      },
+      include: {
+        concept: true,
+        hintTemplate: true,
+        feedbackTemplate: true,
+      },
+    });
+
+    return new Map(tasks.map((task) => [task.id, task] as const));
+  }
+
+  async selectHelpTemplate(input: {
+    taskType: string;
+    sessionMode: SessionMode;
+    preferredHelpStyle: HelpKind;
+    fallbackHintTemplateId?: string | null;
+  }) {
+    const templates = await this.prisma.programmingHintTemplate.findMany({
+      orderBy: { id: "asc" },
+    });
+
+    const fallbackTemplate = input.fallbackHintTemplateId
+      ? templates.find((template) => template.id === input.fallbackHintTemplateId) ??
+        null
+      : null;
+
+    const preferredTemplate =
+      templates.find(
+        (template) =>
+          template.helpKind === input.preferredHelpStyle &&
+          this.includesString(template.allowedTaskTypes, input.taskType) &&
+          this.includesString(template.allowedModes, input.sessionMode),
+      ) ?? null;
+
+    if (preferredTemplate) {
+      return preferredTemplate;
     }
 
-    for (const item of this.getAllQuestionItems()) {
-      await this.prisma.questionItem.upsert({
-        where: { id: item.questionItemId },
-        update: {
-          topicId: item.topicId,
-          role: item.role,
-          questionType: item.questionType as QuestionType,
-          stem: item.stem,
-          choices: item.choices,
-          inputMode: item.inputMode,
-          correctAnswer: item.correctAnswer,
-          difficulty: item.difficulty,
-          estimatedTimeSec: item.estimatedTimeSec,
-          supportedFeedbackType: item.supportedFeedbackType as FeedbackType,
-          supportedErrorTags: item.supportedErrorTags,
-          isActive: true,
-        },
-        create: {
-          id: item.questionItemId,
-          topicId: item.topicId,
-          role: item.role,
-          questionType: item.questionType as QuestionType,
-          stem: item.stem,
-          choices: item.choices,
-          inputMode: item.inputMode,
-          correctAnswer: item.correctAnswer,
-          difficulty: item.difficulty,
-          estimatedTimeSec: item.estimatedTimeSec,
-          supportedFeedbackType: item.supportedFeedbackType as FeedbackType,
-          supportedErrorTags: item.supportedErrorTags,
-          isActive: true,
-        },
-      });
+    if (
+      fallbackTemplate &&
+      this.includesString(fallbackTemplate.allowedTaskTypes, input.taskType) &&
+      this.includesString(fallbackTemplate.allowedModes, input.sessionMode)
+    ) {
+      return fallbackTemplate;
     }
 
-    return {
-      topicsSeeded: seedPack.topics.length,
-      diagnosticItemsSeeded: this.getAllQuestionItems().length,
-    };
+    return null;
   }
 
-  getActiveUnits() {
-    return seedPack.activeUnits;
+  getFeedbackText(input: {
+    feedbackType: FeedbackType;
+    templateText?: string | null;
+  }) {
+    if (input.templateText) {
+      return input.templateText;
+    }
+
+    return GENERIC_FEEDBACK[input.feedbackType];
   }
 
-  getDiagnosticItems() {
-    return this.getAllQuestionItems().filter(
-      (item) => item.role === "diagnostic_probe",
-    );
+  async getSummaryTemplateText(input: {
+    summaryField: "whatImproved" | "whatNeedsSupport" | "studyPatternObserved" | "nextBestAction";
+    triggerCode: string;
+  }) {
+    const template = await this.prisma.programmingSummaryTemplate.findFirst({
+      where: {
+        summaryField: input.summaryField,
+        triggerCode: input.triggerCode,
+      },
+    });
+
+    return template?.templateText ?? "";
   }
 
-  getDailySessionItems() {
-    return this.getDiagnosticItems().slice(0, 3);
-  }
+  private includesString(input: unknown, expected: string) {
+    if (!Array.isArray(input)) {
+      return false;
+    }
 
-  getFeedbackText(feedbackType: FeedbackType) {
-    return seedPack.feedbackFixtures[feedbackType];
-  }
-
-  private getAllQuestionItems() {
-    return [...seedPack.diagnosticItems, ...(seedPack.reviewItems ?? [])];
+    return input.some((value) => value === expected);
   }
 }

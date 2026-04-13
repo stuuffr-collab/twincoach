@@ -1,0 +1,26 @@
+[
+  {
+    "summaryTemplateId": "summary_what_improved_01",
+    "summaryField": "whatImproved",
+    "triggerCode": "concept_strengthened",
+    "templateText": "You answered more reliably on the focus concept in this session."
+  },
+  {
+    "summaryTemplateId": "summary_needs_support_01",
+    "summaryField": "whatNeedsSupport",
+    "triggerCode": "concept_still_needs_support",
+    "templateText": "This concept still needs one steadier pass in the next session."
+  },
+  {
+    "summaryTemplateId": "summary_pattern_01",
+    "summaryField": "studyPatternObserved",
+    "triggerCode": "recovered_after_mistake",
+    "templateText": "You kept going after a mistake and recovered within the same session."
+  },
+  {
+    "summaryTemplateId": "summary_next_action_01",
+    "summaryField": "nextBestAction",
+    "triggerCode": "return_to_programming_state",
+    "templateText": "Go back to Your Programming State for the next recommended step."
+  }
+]

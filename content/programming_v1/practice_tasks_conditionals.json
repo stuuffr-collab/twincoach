@@ -1,0 +1,90 @@
+[
+  {
+    "taskId": "py_practice_cond_01",
+    "conceptId": "py_c02_conditionals",
+    "taskType": "output_prediction",
+    "modeTags": ["steady_practice", "concept_repair", "recovery_mode"],
+    "prompt": "What does this code print?",
+    "codeSnippet": "score = 82\nif score >= 70:\n    print(\"pass\")\nelse:\n    print(\"retry\")",
+    "choices": [
+      { "choiceId": "c1", "label": "pass" },
+      { "choiceId": "c2", "label": "retry" },
+      { "choiceId": "c3", "label": "82" },
+      { "choiceId": "c4", "label": "Nothing" }
+    ],
+    "answerFormat": "single_choice",
+    "correctAnswer": "c1",
+    "supportedErrorTags": ["branch_logic_error"],
+    "hintTemplateId": "hint_step_breakdown_01",
+    "feedbackTemplateId": "feedback_needs_review_01",
+    "estimatedTimeSec": 50,
+    "difficulty": "easy",
+    "isActive": true
+  },
+  {
+    "taskId": "py_practice_cond_02",
+    "conceptId": "py_c02_conditionals",
+    "taskType": "concept_choice",
+    "modeTags": ["steady_practice", "concept_repair"],
+    "prompt": "Which condition is true when `temp` is 0?",
+    "codeSnippet": null,
+    "choices": [
+      { "choiceId": "c1", "label": "temp > 0" },
+      { "choiceId": "c2", "label": "temp < 0" },
+      { "choiceId": "c3", "label": "temp == 0" },
+      { "choiceId": "c4", "label": "temp != 0" }
+    ],
+    "answerFormat": "single_choice",
+    "correctAnswer": "c3",
+    "supportedErrorTags": ["branch_logic_error"],
+    "hintTemplateId": "hint_concept_explanation_01",
+    "feedbackTemplateId": "feedback_try_fix_01",
+    "estimatedTimeSec": 40,
+    "difficulty": "easy",
+    "isActive": true
+  },
+  {
+    "taskId": "py_practice_cond_03",
+    "conceptId": "py_c02_conditionals",
+    "taskType": "bug_spotting",
+    "modeTags": ["debugging_drill", "concept_repair"],
+    "prompt": "Which change makes the code print `adult` at age 18?",
+    "codeSnippet": "age = 18\nif age > 18:\n    print(\"adult\")",
+    "choices": [
+      { "choiceId": "c1", "label": "Change `>` to `>=`" },
+      { "choiceId": "c2", "label": "Change `18` to `17`" },
+      { "choiceId": "c3", "label": "Remove `if`" },
+      { "choiceId": "c4", "label": "Move `print` above the `if`" }
+    ],
+    "answerFormat": "single_choice",
+    "correctAnswer": "c1",
+    "supportedErrorTags": ["branch_logic_error", "debugging_strategy_error"],
+    "hintTemplateId": "hint_debugging_hint_01",
+    "feedbackTemplateId": "feedback_try_fix_01",
+    "estimatedTimeSec": 55,
+    "difficulty": "medium",
+    "isActive": true
+  },
+  {
+    "taskId": "py_practice_cond_04",
+    "conceptId": "py_c02_conditionals",
+    "taskType": "trace_reasoning",
+    "modeTags": ["steady_practice", "concept_repair"],
+    "prompt": "Which value of `x` makes the code print `high`?",
+    "codeSnippet": "if x > 10:\n    print(\"high\")",
+    "choices": [
+      { "choiceId": "c1", "label": "8" },
+      { "choiceId": "c2", "label": "10" },
+      { "choiceId": "c3", "label": "11" },
+      { "choiceId": "c4", "label": "0" }
+    ],
+    "answerFormat": "single_choice",
+    "correctAnswer": "c3",
+    "supportedErrorTags": ["branch_logic_error"],
+    "hintTemplateId": "hint_step_breakdown_01",
+    "feedbackTemplateId": "feedback_needs_another_check_01",
+    "estimatedTimeSec": 45,
+    "difficulty": "easy",
+    "isActive": true
+  }
+]

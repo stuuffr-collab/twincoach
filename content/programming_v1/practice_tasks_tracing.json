@@ -1,0 +1,90 @@
+[
+  {
+    "taskId": "py_practice_trace_01",
+    "conceptId": "py_c05_tracing_state",
+    "taskType": "trace_reasoning",
+    "modeTags": ["steady_practice", "concept_repair", "recovery_mode"],
+    "prompt": "What is the value of `score` after line 3?",
+    "codeSnippet": "score = 1\nscore = score + 4\nscore = score * 2",
+    "choices": [
+      { "choiceId": "c1", "label": "2" },
+      { "choiceId": "c2", "label": "5" },
+      { "choiceId": "c3", "label": "10" },
+      { "choiceId": "c4", "label": "14" }
+    ],
+    "answerFormat": "single_choice",
+    "correctAnswer": "c3",
+    "supportedErrorTags": ["value_tracking_error"],
+    "hintTemplateId": "hint_step_breakdown_01",
+    "feedbackTemplateId": "feedback_needs_another_check_01",
+    "estimatedTimeSec": 55,
+    "difficulty": "medium",
+    "isActive": true
+  },
+  {
+    "taskId": "py_practice_trace_02",
+    "conceptId": "py_c05_tracing_state",
+    "taskType": "output_prediction",
+    "modeTags": ["steady_practice", "concept_repair"],
+    "prompt": "What does this code print?",
+    "codeSnippet": "a = 2\nb = a + 1\na = b + 2\nprint(a)",
+    "choices": [
+      { "choiceId": "c1", "label": "2" },
+      { "choiceId": "c2", "label": "3" },
+      { "choiceId": "c3", "label": "5" },
+      { "choiceId": "c4", "label": "6" }
+    ],
+    "answerFormat": "single_choice",
+    "correctAnswer": "c3",
+    "supportedErrorTags": ["value_tracking_error"],
+    "hintTemplateId": "hint_step_breakdown_01",
+    "feedbackTemplateId": "feedback_needs_review_01",
+    "estimatedTimeSec": 50,
+    "difficulty": "easy",
+    "isActive": true
+  },
+  {
+    "taskId": "py_practice_trace_03",
+    "conceptId": "py_c05_tracing_state",
+    "taskType": "concept_choice",
+    "modeTags": ["steady_practice", "concept_repair"],
+    "prompt": "Which value does `count` have right before `print(count)` runs?",
+    "codeSnippet": "count = 1\ncount = count + 2\nprint(count)",
+    "choices": [
+      { "choiceId": "c1", "label": "1" },
+      { "choiceId": "c2", "label": "2" },
+      { "choiceId": "c3", "label": "3" },
+      { "choiceId": "c4", "label": "4" }
+    ],
+    "answerFormat": "single_choice",
+    "correctAnswer": "c3",
+    "supportedErrorTags": ["value_tracking_error"],
+    "hintTemplateId": "hint_concept_explanation_01",
+    "feedbackTemplateId": "feedback_needs_another_check_01",
+    "estimatedTimeSec": 45,
+    "difficulty": "easy",
+    "isActive": true
+  },
+  {
+    "taskId": "py_practice_trace_04",
+    "conceptId": "py_c05_tracing_state",
+    "taskType": "bug_spotting",
+    "modeTags": ["debugging_drill", "concept_repair"],
+    "prompt": "A learner says this prints 7. Which step did they most likely miss?",
+    "codeSnippet": "value = 5\nvalue = value - 2\nprint(value)",
+    "choices": [
+      { "choiceId": "c1", "label": "They forgot the subtraction changes `value` to 3" },
+      { "choiceId": "c2", "label": "They forgot to define `print`" },
+      { "choiceId": "c3", "label": "They needed a loop" },
+      { "choiceId": "c4", "label": "There is no issue" }
+    ],
+    "answerFormat": "single_choice",
+    "correctAnswer": "c1",
+    "supportedErrorTags": ["value_tracking_error", "debugging_strategy_error"],
+    "hintTemplateId": "hint_debugging_hint_01",
+    "feedbackTemplateId": "feedback_try_fix_01",
+    "estimatedTimeSec": 55,
+    "difficulty": "medium",
+    "isActive": true
+  }
+]

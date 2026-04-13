@@ -9,6 +9,17 @@ import {
 } from "@/src/lib/api";
 import { hasAdminKey } from "@/src/lib/admin-access";
 
+function formatTokenLabel(value: string | null | undefined) {
+  if (!value) {
+    return "Not available yet";
+  }
+
+  return value
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 export default function AdminPreviewPage() {
   const [sessionId, setSessionId] = useState("");
   const [result, setResult] = useState<AdminSessionPreview | null>(null);
@@ -60,7 +71,7 @@ export default function AdminPreviewPage() {
     <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-4 px-4 py-6">
       <PageHeader
         title="Session Preview"
-        subtitle="Inspect committed session items and slot balance before investigating alpha issues."
+        subtitle="Inspect committed programming tasks, focus concept, and current mode before supporting an active learner."
       />
 
       <form className="grid gap-3" onSubmit={handleSubmit}>
@@ -88,10 +99,15 @@ export default function AdminPreviewPage() {
       {result ? (
         <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
           <div className="text-sm font-semibold text-[var(--text)]">
-            {result.sessionType} session
+            {formatTokenLabel(result.sessionType)} session
           </div>
           <div className="mt-2 text-sm text-[var(--text-muted)]">
-            Status: {result.status} | Position: {result.currentIndex}/{result.totalItems}
+            Status: {formatTokenLabel(result.status)} | Position: {result.currentIndex}/
+            {result.totalItems}
+          </div>
+          <div className="mt-2 text-sm text-[var(--text-muted)]">
+            Mode: {formatTokenLabel(result.sessionMode)} | Focus:{" "}
+            {result.focusConceptLabel || "Not available yet"}
           </div>
           <div className="mt-4 grid gap-2">
             {result.items.map((item) => (
@@ -100,10 +116,11 @@ export default function AdminPreviewPage() {
                 key={item.sessionItemId}
               >
                 <div className="font-medium">
-                  #{item.sequenceOrder} · {item.slotType}
+                  #{item.sequenceOrder} | {formatTokenLabel(item.taskType)}
                 </div>
                 <div className="text-[var(--text-muted)]">
-                  {item.questionItemId} · {item.topicId} · {item.isActive ? "active" : "deactivated"}
+                  {item.taskId} | {item.conceptLabel || item.conceptId} |{" "}
+                  {item.isActive ? "active" : "deactivated"}
                 </div>
               </div>
             ))}

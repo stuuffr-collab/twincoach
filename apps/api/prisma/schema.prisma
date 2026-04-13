@@ -13,6 +13,51 @@ enum QuestionType {
   expression_choice
 }
 
+enum ProgrammingExposure {
+  none
+  school_basics
+  self_taught_basics
+  completed_intro_course
+}
+
+enum ComfortLevel {
+  very_low
+  low
+  medium
+}
+
+enum ProgrammingDifficultyArea {
+  reading_code
+  writing_syntax
+  tracing_logic
+  debugging_errors
+}
+
+enum HelpKind {
+  step_breakdown
+  worked_example
+  debugging_hint
+  concept_explanation
+}
+
+enum ProgrammingTaskType {
+  output_prediction
+  trace_reasoning
+  bug_spotting
+  code_completion
+  concept_choice
+}
+
+enum AnswerFormat {
+  single_choice
+  short_text
+}
+
+enum ProgrammingTaskSetRole {
+  diagnostic
+  practice
+}
+
 enum FeedbackType {
   correct
   needs_review
@@ -36,40 +81,95 @@ enum LearnerProgressState {
 enum SessionType {
   diagnostic
   daily
+  daily_practice
+}
+
+enum SessionMode {
+  steady_practice
+  concept_repair
+  debugging_drill
+  recovery_mode
+}
+
+enum MomentumState {
+  unknown
+  low
+  steady
+  strong
+}
+
+enum StabilityState {
+  unknown
+  fragile
+  developing
+  steady
+}
+
+enum ResilienceState {
+  unknown
+  fragile
+  recovering
+  steady
+}
+
+enum MasteryState {
+  unknown
+  emerging
+  steady
+}
+
+enum ProgrammingErrorTag {
+  syntax_form_error
+  value_tracking_error
+  branch_logic_error
+  loop_control_error
+  function_usage_error
+  debugging_strategy_error
+}
+
+enum SummaryTemplateField {
+  whatImproved
+  whatNeedsSupport
+  studyPatternObserved
+  nextBestAction
 }
 
 model Learner {
-  id          String             @id @default(cuid())
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-  examCycles  ExamCycle[]
-  sessions    Session[]
-  attempts    Attempt[]
-  topicStates LearnerTopicState[]
+  id                 String                           @id @default(cuid())
+  createdAt          DateTime                         @default(now())
+  updatedAt          DateTime                         @updatedAt
+  examCycles         ExamCycle[]
+  sessions           Session[]
+  attempts           Attempt[]
+  topicStates        LearnerTopicState[]
+  programmingProfile ProgrammingProfile?
+  programmingPersona LearnerProgrammingPersona?
+  conceptStates      LearnerProgrammingConceptState[]
+  telemetryEvents    TelemetryEvent[]
 }
 
 model ExamCycle {
-  id             String               @id @default(cuid())
-  learnerId      String
-  examDate       DateTime
-  activeUnitId   String
-  onboardingComplete Boolean         @default(false)
-  progressState  LearnerProgressState @default(new)
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
+  id                 String               @id @default(cuid())
+  learnerId          String
+  examDate           DateTime
+  activeUnitId       String
+  onboardingComplete Boolean              @default(false)
+  progressState      LearnerProgressState @default(new)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
 
-  learner  Learner  @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  learner  Learner   @relation(fields: [learnerId], references: [id], onDelete: Cascade)
   sessions Session[]
 
   @@index([learnerId])
 }
 
 model Topic {
-  id            String             @id
+  id            String              @id
   title         String
   sequenceOrder Int
   examWeight    Int
-  isActive      Boolean            @default(true)
+  isActive      Boolean             @default(true)
   questionItems QuestionItem[]
   topicStates   LearnerTopicState[]
 }
@@ -82,6 +182,96 @@ model PrerequisiteLink {
 
   @@index([topicId])
   @@index([prerequisiteTopicId])
+}
+
+model ProgrammingProfile {
+  learnerId                String                    @id
+  priorProgrammingExposure ProgrammingExposure
+  currentComfortLevel      ComfortLevel
+  biggestDifficulty        ProgrammingDifficultyArea
+  preferredHelpStyle       HelpKind
+  onboardingComplete       Boolean                   @default(false)
+  onboardingCompletedAt    DateTime?
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+
+  learner Learner @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+}
+
+model ProgrammingConcept {
+  id              String                           @id
+  sequenceOrder   Int
+  learnerLabel    String
+  description     String
+  isActive        Boolean                          @default(true)
+  createdAt       DateTime                         @default(now())
+  updatedAt       DateTime                         @updatedAt
+  tasks           ProgrammingTask[]
+  conceptStates   LearnerProgrammingConceptState[]
+  focusedPersonas LearnerProgrammingPersona[]      @relation("PersonaFocusConcept")
+  focusedSessions Session[]                        @relation("SessionFocusConcept")
+}
+
+model ProgrammingHintTemplate {
+  id               String            @id
+  helpKind         HelpKind
+  label            String
+  templateText     String
+  allowedTaskTypes Json
+  allowedModes     Json
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  tasks            ProgrammingTask[]
+}
+
+model ProgrammingFeedbackTemplate {
+  id               String            @id
+  feedbackType     FeedbackType
+  templateText     String
+  allowedTaskTypes Json
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  tasks            ProgrammingTask[]
+}
+
+model ProgrammingSummaryTemplate {
+  id           String               @id
+  summaryField SummaryTemplateField
+  triggerCode  String
+  templateText String
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+}
+
+model ProgrammingTask {
+  id                 String                 @id
+  conceptId          String
+  taskSetRole        ProgrammingTaskSetRole
+  taskType           ProgrammingTaskType
+  prompt             String
+  codeSnippet        String?
+  choices            Json
+  answerFormat       AnswerFormat
+  correctAnswer      String
+  helperText         String
+  difficulty         String
+  estimatedTimeSec   Int
+  supportedErrorTags Json
+  modeTags           Json?
+  hintTemplateId     String?
+  feedbackTemplateId String?
+  isActive           Boolean                @default(true)
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  concept          ProgrammingConcept           @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  hintTemplate     ProgrammingHintTemplate?     @relation(fields: [hintTemplateId], references: [id], onDelete: SetNull)
+  feedbackTemplate ProgrammingFeedbackTemplate? @relation(fields: [feedbackTemplateId], references: [id], onDelete: SetNull)
+
+  @@index([conceptId])
+  @@index([taskSetRole])
+  @@index([hintTemplateId])
+  @@index([feedbackTemplateId])
 }
 
 model QuestionItem {
@@ -111,6 +301,9 @@ model Session {
   learnerId       String
   examCycleId     String
   sessionType     SessionType
+  sessionMode     SessionMode?
+  focusConceptId  String?
+  rationaleCode   String?
   status          SessionStatus @default(generated)
   currentIndex    Int           @default(1)
   totalItems      Int
@@ -119,17 +312,19 @@ model Session {
   startedAt       DateTime?
   completedAt     DateTime?
 
-  learner     Learner      @relation(fields: [learnerId], references: [id], onDelete: Cascade)
-  examCycle   ExamCycle    @relation(fields: [examCycleId], references: [id], onDelete: Cascade)
+  learner      Learner             @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  examCycle    ExamCycle           @relation(fields: [examCycleId], references: [id], onDelete: Cascade)
+  focusConcept ProgrammingConcept? @relation("SessionFocusConcept", fields: [focusConceptId], references: [id], onDelete: SetNull)
   sessionItems SessionItem[]
-  attempts    Attempt[]
+  attempts     Attempt[]
 
   @@index([learnerId])
   @@index([examCycleId])
+  @@index([focusConceptId])
 }
 
 model SessionItem {
-  id             String @id @default(cuid())
+  id             String  @id @default(cuid())
   sessionId      String
   questionItemId String
   sequenceOrder  Int
@@ -144,14 +339,20 @@ model SessionItem {
 }
 
 model Attempt {
-  id            String   @id @default(cuid())
-  learnerId     String
-  sessionId     String
-  sessionItemId String
-  questionItemId String
-  answerOutcome String
-  attemptIndex  Int      @default(1)
-  createdAt     DateTime @default(now())
+  id                  String               @id @default(cuid())
+  learnerId           String
+  sessionId           String
+  sessionItemId       String
+  questionItemId      String
+  answerValue         String?
+  isCorrect           Boolean?
+  answerOutcome       String
+  attemptIndex        Int                  @default(1)
+  primaryErrorTag     ProgrammingErrorTag?
+  timeToFirstActionMs Int?
+  timeToSubmitMs      Int?
+  helpKindUsed        HelpKind?
+  createdAt           DateTime             @default(now())
 
   learner      Learner      @relation(fields: [learnerId], references: [id], onDelete: Cascade)
   session      Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
@@ -161,21 +362,77 @@ model Attempt {
   @@index([learnerId])
   @@index([sessionId])
   @@index([sessionItemId])
+  @@index([primaryErrorTag])
 }
 
 model LearnerTopicState {
-  id                String   @id @default(cuid())
-  learnerId         String
-  topicId           String
-  masteryState      String
-  prereqRiskState   String
-  validEvidenceCount Int     @default(0)
-  lastEvidenceAt    DateTime?
-  nextReviewDueAt   DateTime?
+  id                 String    @id @default(cuid())
+  learnerId          String
+  topicId            String
+  masteryState       String
+  prereqRiskState    String
+  validEvidenceCount Int       @default(0)
+  lastEvidenceAt     DateTime?
+  nextReviewDueAt    DateTime?
 
   learner Learner @relation(fields: [learnerId], references: [id], onDelete: Cascade)
   topic   Topic   @relation(fields: [topicId], references: [id], onDelete: Cascade)
 
   @@unique([learnerId, topicId])
   @@index([topicId])
+}
+
+model LearnerProgrammingPersona {
+  learnerId                String          @id
+  modelVersion             String
+  preferredHelpStyle       HelpKind
+  sessionMomentumState     MomentumState   @default(unknown)
+  syntaxStabilityState     StabilityState  @default(unknown)
+  logicTracingState        StabilityState  @default(unknown)
+  debuggingResilienceState ResilienceState @default(unknown)
+  focusConceptId           String?
+  createdAt                DateTime        @default(now())
+  updatedAt                DateTime        @updatedAt
+
+  learner      Learner             @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  focusConcept ProgrammingConcept? @relation("PersonaFocusConcept", fields: [focusConceptId], references: [id], onDelete: SetNull)
+
+  @@index([focusConceptId])
+}
+
+model LearnerProgrammingConceptState {
+  id             String               @id @default(cuid())
+  learnerId      String
+  conceptId      String
+  masteryState   MasteryState         @default(unknown)
+  recentErrorTag ProgrammingErrorTag?
+  lastObservedAt DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  learner Learner            @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  concept ProgrammingConcept @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  @@unique([learnerId, conceptId])
+  @@index([conceptId])
+  @@index([recentErrorTag])
+}
+
+model TelemetryEvent {
+  id            String   @id @default(cuid())
+  eventName     String
+  occurredAt    DateTime
+  learnerId     String
+  route         String
+  sessionId     String?
+  sessionItemId String?
+  properties    Json
+  createdAt     DateTime @default(now())
+
+  learner Learner @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+
+  @@index([learnerId])
+  @@index([eventName])
+  @@index([occurredAt])
+  @@index([sessionId])
 }

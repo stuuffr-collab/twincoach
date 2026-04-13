@@ -1,26 +1,55 @@
 import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-process.loadEnvFile?.(".env");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+try {
+  process.loadEnvFile?.(path.resolve(__dirname, "../.env"));
+} catch (error) {
+  if (!isMissingEnvFileError(error)) {
+    throw error;
+  }
+}
 
 const apiBaseUrl = process.env.API_BASE_URL ?? "http://localhost:3001";
+const contentDir = path.resolve(__dirname, "../../../content/programming_v1");
 
-const diagnosticAnswers = {
-  diag_q01: "11",
-  diag_q02: "5",
-  diag_q03: "x > 4",
-  diag_q04: "y = 2x + 1",
-  diag_q05: "11",
-  diag_q06: "y = 2x + 3",
-};
+async function readJson(filename) {
+  const file = await fs.readFile(path.join(contentDir, filename), "utf8");
 
-const dailyAnswers = {
-  diag_q01: "11",
-  diag_q02: "5",
-  diag_q03: "x > 4",
-};
+  return JSON.parse(file);
+}
 
-async function request(path, options = {}) {
-  const response = await fetch(`${apiBaseUrl}${path}`, options);
+async function buildAnswerMap() {
+  const fileNames = [
+    "diagnostic_tasks.json",
+    "practice_tasks_variables.json",
+    "practice_tasks_conditionals.json",
+    "practice_tasks_loops.json",
+    "practice_tasks_functions.json",
+    "practice_tasks_tracing.json",
+    "practice_tasks_debugging.json",
+  ];
+  const taskGroups = await Promise.all(fileNames.map((fileName) => readJson(fileName)));
+
+  return new Map(
+    taskGroups
+      .flat()
+      .map((task) => [
+        task.taskId,
+        {
+          correctAnswer: task.correctAnswer,
+          answerFormat: task.answerFormat,
+          choices: Array.isArray(task.choices) ? task.choices : [],
+        },
+      ]),
+  );
+}
+
+async function request(pathname, options = {}) {
+  const response = await fetch(`${apiBaseUrl}${pathname}`, options);
   const text = await response.text();
   const data = text ? JSON.parse(text) : null;
 
@@ -31,17 +60,70 @@ async function request(path, options = {}) {
   };
 }
 
+function isMissingEnvFileError(error) {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    error.code === "ENOENT"
+  );
+}
+
+function getWrongAnswer(task) {
+  if (task.answerFormat === "short_text") {
+    return "__wrong__";
+  }
+
+  const wrongChoice = task.choices.find(
+    (choice) => choice.choiceId !== task.correctAnswer,
+  );
+
+  return wrongChoice?.choiceId ?? "__wrong__";
+}
+
+function assertProgrammingStateShape(payload) {
+  assert.equal(payload.screenTitle, "Your Programming State");
+  assert.match(
+    payload.programmingStateCode,
+    /^(building_foundations|debugging_focus|steady_progress|recovery_needed)$/,
+  );
+  assert.ok(payload.focusConceptId);
+  assert.ok(payload.focusConceptLabel);
+  assert.match(
+    payload.sessionMode,
+    /^(steady_practice|concept_repair|debugging_drill|recovery_mode)$/,
+  );
+  assert.ok(payload.sessionModeLabel);
+  assert.match(
+    payload.rationaleCode,
+    /^(recent_concept_errors|repeated_debugging_errors|strong_recent_progress|recent_dropoff)$/,
+  );
+  assert.ok(payload.rationaleText);
+  assert.ok(payload.nextStepText);
+  assert.match(
+    payload.primaryActionLabel,
+    /^(Start today's session|Resume today's session)$/,
+  );
+}
+
 async function run() {
+  const answerMap = await buildAnswerMap();
+
   const onboarding = await request("/onboarding/complete", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      examDate: "2026-06-20",
-      activeUnitId: "ca_u03_linear_equations",
+      priorProgrammingExposure: "none",
+      currentComfortLevel: "low",
+      biggestDifficulty: "debugging_errors",
+      preferredHelpStyle: "debugging_hint",
     }),
   });
 
   assert.equal(onboarding.status, 201);
+  assert.equal(onboarding.data.onboardingComplete, true);
+  assert.equal(onboarding.data.nextRoute, "/diagnostic");
+  assert.ok(onboarding.data.learnerId);
+
   const learnerId = onboarding.data.learnerId;
   const learnerHeaders = { "x-learner-id": learnerId };
 
@@ -50,6 +132,11 @@ async function run() {
     headers: learnerHeaders,
   });
   assert.equal(diagnosticStart.status, 201);
+  assert.equal(diagnosticStart.data.sessionType, "diagnostic");
+  assert.equal(diagnosticStart.data.totalItems, 6);
+  assert.equal(diagnosticStart.data.currentIndex, 1);
+  assert.ok(diagnosticStart.data.checkpointToken);
+  assert.ok(diagnosticStart.data.currentTask.taskId);
 
   const diagnosticResume = await request("/diagnostic/create-or-resume", {
     method: "POST",
@@ -67,14 +154,22 @@ async function run() {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        sessionItemId: diagnosticStart.data.currentItem.sessionItemId,
-        answerValue: diagnosticAnswers[diagnosticStart.data.currentItem.questionItemId],
+        sessionItemId: diagnosticStart.data.currentTask.sessionItemId,
+        answerValue:
+          answerMap.get(diagnosticStart.data.currentTask.taskId)?.correctAnswer ?? "c1",
         checkpointToken: "stale-checkpoint-token",
       }),
     },
   );
   assert.equal(staleDiagnostic.status, 409);
   assert.equal(staleDiagnostic.data.message, "Stale submit");
+
+  const firstDiagnosticAnswer = {
+    sessionItemId: diagnosticStart.data.currentTask.sessionItemId,
+    answerValue:
+      answerMap.get(diagnosticStart.data.currentTask.taskId)?.correctAnswer ?? "c1",
+    checkpointToken: diagnosticStart.data.checkpointToken,
+  };
 
   const diagnosticFirstSubmit = await request(
     `/session/${diagnosticStart.data.sessionId}/answer`,
@@ -84,14 +179,11 @@ async function run() {
         ...learnerHeaders,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        sessionItemId: diagnosticStart.data.currentItem.sessionItemId,
-        answerValue: diagnosticAnswers[diagnosticStart.data.currentItem.questionItemId],
-        checkpointToken: diagnosticStart.data.checkpointToken,
-      }),
+      body: JSON.stringify(firstDiagnosticAnswer),
     },
   );
   assert.equal(diagnosticFirstSubmit.status, 201);
+  assert.equal(diagnosticFirstSubmit.data.isCorrect, true);
 
   const duplicateDiagnostic = await request(
     `/session/${diagnosticStart.data.sessionId}/answer`,
@@ -101,11 +193,7 @@ async function run() {
         ...learnerHeaders,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        sessionItemId: diagnosticStart.data.currentItem.sessionItemId,
-        answerValue: diagnosticAnswers[diagnosticStart.data.currentItem.questionItemId],
-        checkpointToken: diagnosticStart.data.checkpointToken,
-      }),
+      body: JSON.stringify(firstDiagnosticAnswer),
     },
   );
   assert.equal(duplicateDiagnostic.status, 409);
@@ -119,7 +207,7 @@ async function run() {
 
   while (diagnosticSession.data.status !== "completed") {
     const answerValue =
-      diagnosticAnswers[diagnosticSession.data.currentItem.questionItemId];
+      answerMap.get(diagnosticSession.data.currentTask.taskId)?.correctAnswer ?? "c1";
 
     const submit = await request(
       `/session/${diagnosticSession.data.sessionId}/answer`,
@@ -130,7 +218,7 @@ async function run() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          sessionItemId: diagnosticSession.data.currentItem.sessionItemId,
+          sessionItemId: diagnosticSession.data.currentTask.sessionItemId,
           answerValue,
           checkpointToken: diagnosticSession.data.checkpointToken,
         }),
@@ -156,18 +244,37 @@ async function run() {
   assert.equal(bootAfterDiagnostic.status, 200);
   assert.equal(bootAfterDiagnostic.data.nextRoute, "/today");
 
+  const todayBeforeDaily = await request("/today", {
+    headers: learnerHeaders,
+  });
+  assert.equal(todayBeforeDaily.status, 200);
+  assertProgrammingStateShape(todayBeforeDaily.data);
+  assert.equal(todayBeforeDaily.data.hasActiveDailySession, false);
+  assert.equal(todayBeforeDaily.data.activeSessionId, null);
+  assert.equal(todayBeforeDaily.data.primaryActionLabel, "Start today's session");
+
   const dailyStart = await request("/session/create-or-resume", {
     method: "POST",
     headers: learnerHeaders,
   });
   assert.equal(dailyStart.status, 201);
+  assert.equal(dailyStart.data.sessionType, "daily_practice");
+  assert.match(
+    dailyStart.data.sessionMode,
+    /^(steady_practice|concept_repair|debugging_drill|recovery_mode)$/,
+  );
+  assert.ok([3, 4].includes(dailyStart.data.totalItems));
+  assert.ok(dailyStart.data.focusConceptId);
+  assert.ok(typeof dailyStart.data.currentTask.helpAvailable === "boolean");
 
   const todayDuringActiveDaily = await request("/today", {
     headers: learnerHeaders,
   });
   assert.equal(todayDuringActiveDaily.status, 200);
+  assertProgrammingStateShape(todayDuringActiveDaily.data);
   assert.equal(todayDuringActiveDaily.data.hasActiveDailySession, true);
-  assert.equal(todayDuringActiveDaily.data.primaryActionLabel, "Resume 10-Min Session");
+  assert.equal(todayDuringActiveDaily.data.activeSessionId, dailyStart.data.sessionId);
+  assert.equal(todayDuringActiveDaily.data.primaryActionLabel, "Resume today's session");
 
   const dailyResume = await request("/session/create-or-resume", {
     method: "POST",
@@ -176,6 +283,9 @@ async function run() {
   assert.equal(dailyResume.status, 201);
   assert.equal(dailyResume.data.sessionId, dailyStart.data.sessionId);
 
+  const firstDailyTask = answerMap.get(dailyStart.data.currentTask.taskId);
+  assert.ok(firstDailyTask);
+
   const staleDaily = await request(`/session/${dailyStart.data.sessionId}/answer`, {
     method: "POST",
     headers: {
@@ -183,8 +293,8 @@ async function run() {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      sessionItemId: dailyStart.data.currentItem.sessionItemId,
-      answerValue: dailyAnswers[dailyStart.data.currentItem.questionItemId],
+      sessionItemId: dailyStart.data.currentTask.sessionItemId,
+      answerValue: firstDailyTask.correctAnswer,
       checkpointToken: "stale-checkpoint-token",
     }),
   });
@@ -197,12 +307,23 @@ async function run() {
   assert.equal(dailySession.status, 200);
 
   let firstDailySubmitPayload = null;
+  let testedHintOffer = false;
 
   while (dailySession.data.status !== "completed") {
-    const answerValue =
-      dailyAnswers[dailySession.data.currentItem.questionItemId] ??
-      diagnosticAnswers[dailySession.data.currentItem.questionItemId] ??
-      "wrong-answer";
+    const taskDefinition = answerMap.get(dailySession.data.currentTask.taskId);
+    assert.ok(taskDefinition);
+
+    const shouldForceIncorrect =
+      !testedHintOffer && dailySession.data.currentTask.helpAvailable === true;
+    const answerValue = shouldForceIncorrect
+      ? getWrongAnswer(taskDefinition)
+      : taskDefinition.correctAnswer;
+
+    const submitPayload = {
+      sessionItemId: dailySession.data.currentTask.sessionItemId,
+      answerValue,
+      checkpointToken: dailySession.data.checkpointToken,
+    };
 
     const submit = await request(`/session/${dailyStart.data.sessionId}/answer`, {
       method: "POST",
@@ -210,20 +331,22 @@ async function run() {
         ...learnerHeaders,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        sessionItemId: dailySession.data.currentItem.sessionItemId,
-        answerValue,
-        checkpointToken: dailySession.data.checkpointToken,
-      }),
+      body: JSON.stringify(submitPayload),
     });
     assert.equal(submit.status, 201);
 
+    if (shouldForceIncorrect) {
+      assert.equal(submit.data.isCorrect, false);
+      assert.ok(submit.data.helpOffer);
+      assert.match(
+        submit.data.helpOffer.helpKind,
+        /^(step_breakdown|worked_example|debugging_hint|concept_explanation)$/,
+      );
+      testedHintOffer = true;
+    }
+
     if (!firstDailySubmitPayload) {
-      firstDailySubmitPayload = {
-        sessionItemId: dailySession.data.currentItem.sessionItemId,
-        answerValue,
-        checkpointToken: dailySession.data.checkpointToken,
-      };
+      firstDailySubmitPayload = submitPayload;
 
       const duplicateDaily = await request(
         `/session/${dailyStart.data.sessionId}/answer`,
@@ -249,11 +372,7 @@ async function run() {
             ...learnerHeaders,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            sessionItemId: dailySession.data.currentItem.sessionItemId,
-            answerValue,
-            checkpointToken: dailySession.data.checkpointToken,
-          }),
+          body: JSON.stringify(submitPayload),
         },
       );
       assert.equal(completedSubmit.status, 409);
@@ -270,16 +389,33 @@ async function run() {
     headers: learnerHeaders,
   });
   assert.equal(summary.status, 200);
-  assert.equal(summary.data.totalItems, 3);
+  assert.equal(testedHintOffer, true);
+  assert.equal(summary.data.sessionId, dailyStart.data.sessionId);
+  assert.ok([3, 4].includes(summary.data.completedTaskCount));
+  assert.match(
+    summary.data.whatImproved.code,
+    /^(concept_strengthened|debugging_recovery|steady_completion)$/,
+  );
+  assert.match(
+    summary.data.whatNeedsSupport.code,
+    /^(concept_still_needs_support|syntax_still_fragile|debugging_still_needs_structure)$/,
+  );
+  assert.match(
+    summary.data.studyPatternObserved.code,
+    /^(recovered_after_mistake|steady_throughout|hesitated_but_completed|needed_hint_to_progress)$/,
+  );
+  assert.equal(summary.data.nextBestAction.route, "/today");
+  assert.equal(summary.data.nextBestAction.label, "Back to Your Programming State");
 
   const todayAfterDaily = await request("/today", {
     headers: learnerHeaders,
   });
   assert.equal(todayAfterDaily.status, 200);
+  assertProgrammingStateShape(todayAfterDaily.data);
   assert.equal(todayAfterDaily.data.hasActiveDailySession, false);
-  assert.equal(todayAfterDaily.data.primaryActionLabel, "Start 10-Min Session");
+  assert.equal(todayAfterDaily.data.primaryActionLabel, "Start today's session");
 
-  console.log("Learner slice reliability verification passed.");
+  console.log("Programming learner slice reliability verification passed.");
 }
 
 run().catch((error) => {

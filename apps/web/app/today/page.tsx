@@ -10,62 +10,24 @@ import {
   ApiError,
   createOrResumeDailySession,
   fetchTodaySummary,
-  type TodaySummary,
+  type ProgrammingState,
 } from "@/src/lib/api";
+import {
+  getProgrammingStateTone,
+  getSessionModeTone,
+} from "@/src/lib/programming-ui";
 
-function getReadinessTone(readinessBand: string) {
-  if (readinessBand === "Needs Review") {
-    return "border-amber-200 bg-amber-50 text-amber-900";
-  }
-
-  if (readinessBand === "Building Readiness") {
-    return "border-blue-200 bg-blue-50 text-blue-900";
-  }
-
-  return "border-slate-200 bg-slate-50 text-slate-900";
-}
-
-function getReadinessCopy(readinessBand: string) {
-  if (readinessBand === "Needs Review") {
-    return {
-      explanation:
-        "You still have weak areas or due review that need to be cleared before this signal can improve.",
-      nextStep: "Complete today's short session and clear the due review items first.",
-    };
-  }
-
-  if (readinessBand === "Building Readiness") {
-    return {
-      explanation:
-        "You have enough evidence to show progress, but the signal stays conservative until coverage stays stable.",
-      nextStep: "Keep finishing daily sessions and protect your review work across topics.",
-    };
-  }
-
-  return {
-    explanation:
-      "You have not answered enough across the exam scope to support a stronger readiness signal yet.",
-    nextStep: "Keep completing short sessions so we can confirm weak areas before the exam.",
-  };
-}
-
-function getPrimaryActionCopy(summary: TodaySummary) {
+function getProgrammingStateSupport(summary: ProgrammingState) {
   if (summary.hasActiveDailySession) {
-    return {
-      label: "Resume today's session",
-      support: "Pick up right where you left off.",
-    };
+    return "Resume the saved session to keep your current progress and continue from the right step.";
   }
 
-  return {
-    label: "Start today's session",
-    support: "One short session moves today's plan forward.",
-  };
+  return "Start one short guided session to move this programming state forward today.";
 }
 
 export default function TodayPage() {
   const router = useRouter();
-  const [summary, setSummary] = useState<TodaySummary | null>(null);
+  const [summary, setSummary] = useState<ProgrammingState | null>(null);
   const [loading, setLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState("");
@@ -95,7 +57,7 @@ export default function TodayPage() {
         }
 
         if (!cancelled) {
-          setError("Unable to load today.");
+          setError("Unable to load your programming state.");
         }
       } finally {
         if (!cancelled) {
@@ -128,7 +90,7 @@ export default function TodayPage() {
         return;
       }
 
-      setError("Unable to start your daily session.");
+      setError("Unable to open today's programming session.");
     } finally {
       setIsStarting(false);
     }
@@ -137,17 +99,17 @@ export default function TodayPage() {
   return (
     <StudentShell>
       <PageHeader
-        detail="One short session today keeps your exam plan moving."
+        detail="TwinCoach chooses one calm next step from your recent programming work and keeps the guidance conservative."
         eyebrow="Today's plan"
-        subtitle="A calm view of your current readiness and the next study step."
-        title="Keep your exam plan moving"
+        subtitle="A simple view of what your recent Python work suggests and what kind of session should come next."
+        title={summary?.screenTitle ?? "Your Programming State"}
       />
       <section className="flex flex-1 flex-col gap-4 px-4 pb-6">
         {loading ? (
           <StatePanel
-            description="We're loading today's readiness signal and your next study step."
-            eyebrow="Today's plan"
-            title="Loading your plan for today..."
+            description="We're loading your current programming state and today's recommended session mode."
+            eyebrow="Programming state"
+            title="Loading your next study step..."
             tone="loading"
           />
         ) : null}
@@ -155,7 +117,7 @@ export default function TodayPage() {
         {error ? (
           <StatePanel
             description={error}
-            eyebrow="Today's plan"
+            eyebrow="Programming state"
             title="We couldn't load today's plan."
             tone="error"
           />
@@ -163,65 +125,49 @@ export default function TodayPage() {
 
         {summary ? (
           <>
-            {(() => {
-              const readinessCopy = getReadinessCopy(summary.readinessBand);
-              const readinessTone = getReadinessTone(summary.readinessBand);
-              const actionCopy = getPrimaryActionCopy(summary);
+            <div className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                What we see today
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span
+                  className={`inline-flex rounded-full border px-3 py-1.5 text-sm font-semibold ${getProgrammingStateTone(summary.programmingStateCode)}`}
+                >
+                  {summary.programmingStateLabel}
+                </span>
+                <span
+                  className={`inline-flex rounded-full border px-3 py-1.5 text-sm font-semibold ${getSessionModeTone(summary.sessionMode)}`}
+                >
+                  {summary.sessionModeLabel}
+                </span>
+              </div>
+              <div className="mt-5 rounded-2xl bg-[var(--surface-muted)] p-4">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                  Focus concept
+                </div>
+                <div className="mt-2 text-lg font-semibold text-[var(--text)]">
+                  {summary.focusConceptLabel}
+                </div>
+              </div>
+              <div className="mt-4 text-sm leading-6 text-[var(--text-muted)]">
+                {summary.rationaleText}
+              </div>
+            </div>
 
-              return (
-                <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                        Exam date
-                      </div>
-                      <div className="mt-2 text-base font-semibold text-[var(--text)]">
-                        {summary.examDate}
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                        Time left
-                      </div>
-                      <div className="mt-2 text-base font-semibold text-[var(--text)]">
-                        {summary.daysToExam} days
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                      Readiness
-                    </div>
-                    <div
-                      className={`mt-3 inline-flex rounded-full border px-3 py-1.5 text-sm font-semibold ${readinessTone}`}
-                    >
-                      {summary.readinessBand}
-                    </div>
-                    <div className="mt-4 text-sm leading-6 text-[var(--text-muted)]">
-                      {readinessCopy.explanation}
-                    </div>
-
-                    <div className="mt-5 rounded-2xl bg-[var(--surface-muted)] p-4">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                        Do this now
-                      </div>
-                      <div className="mt-2 text-base font-semibold text-[var(--text)]">
-                        {actionCopy.label}
-                      </div>
-                      <div className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
-                        {readinessCopy.nextStep}
-                      </div>
-                    </div>
-
-                    <div className="mt-4 text-sm text-[var(--text-muted)]">
-                      {actionCopy.support}
-                    </div>
-                  </div>
-                </>
-              );
-            })()}
+            <div className="rounded-[1.75rem] border border-[var(--border)] bg-[linear-gradient(180deg,#ffffff_0%,#fbfcff_100%)] p-5 shadow-sm">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                Do this next
+              </div>
+              <div className="mt-3 text-lg font-semibold text-[var(--text)]">
+                {summary.primaryActionLabel}
+              </div>
+              <div className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
+                {summary.nextStepText}
+              </div>
+              <div className="mt-4 rounded-2xl border border-[var(--border)] bg-white p-4 text-sm leading-6 text-[var(--text-muted)] shadow-sm">
+                {getProgrammingStateSupport(summary)}
+              </div>
+            </div>
           </>
         ) : null}
       </section>
@@ -229,16 +175,14 @@ export default function TodayPage() {
         disabled={loading || isStarting || !summary}
         label={
           isStarting
-            ? "Starting..."
-            : summary
-              ? getPrimaryActionCopy(summary).label
-              : "Start today's session"
+            ? "Opening your session..."
+            : summary?.primaryActionLabel ?? "Start today's session"
         }
         onClick={handlePrimaryAction}
         supportingText={
           summary
-            ? getPrimaryActionCopy(summary).support
-            : "Your next study step appears here as soon as your plan loads."
+            ? getProgrammingStateSupport(summary)
+            : "Your next study step appears here as soon as your programming state loads."
         }
       />
     </StudentShell>

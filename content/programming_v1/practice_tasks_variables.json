@@ -1,0 +1,85 @@
+[
+  {
+    "taskId": "py_practice_var_01",
+    "conceptId": "py_c01_variables",
+    "taskType": "output_prediction",
+    "modeTags": ["steady_practice", "concept_repair", "recovery_mode"],
+    "prompt": "What does this code print?",
+    "codeSnippet": "apples = 3\napples = apples + 2\nprint(apples)",
+    "choices": [
+      { "choiceId": "c1", "label": "3" },
+      { "choiceId": "c2", "label": "5" },
+      { "choiceId": "c3", "label": "6" },
+      { "choiceId": "c4", "label": "32" }
+    ],
+    "answerFormat": "single_choice",
+    "correctAnswer": "c2",
+    "supportedErrorTags": ["value_tracking_error"],
+    "hintTemplateId": "hint_step_breakdown_01",
+    "feedbackTemplateId": "feedback_needs_review_01",
+    "estimatedTimeSec": 45,
+    "difficulty": "easy",
+    "isActive": true
+  },
+  {
+    "taskId": "py_practice_var_02",
+    "conceptId": "py_c01_variables",
+    "taskType": "code_completion",
+    "modeTags": ["steady_practice", "concept_repair"],
+    "prompt": "Fill in the missing expression so `total` becomes 9.",
+    "codeSnippet": "start = 4\ntotal = start + ____",
+    "choices": [],
+    "answerFormat": "short_text",
+    "correctAnswer": "5",
+    "supportedErrorTags": ["value_tracking_error", "syntax_form_error"],
+    "hintTemplateId": "hint_worked_example_01",
+    "feedbackTemplateId": "feedback_try_fix_01",
+    "estimatedTimeSec": 50,
+    "difficulty": "easy",
+    "isActive": true
+  },
+  {
+    "taskId": "py_practice_var_03",
+    "conceptId": "py_c01_variables",
+    "taskType": "concept_choice",
+    "modeTags": ["steady_practice", "concept_repair", "recovery_mode"],
+    "prompt": "Which line stores the value 12 in `result`?",
+    "codeSnippet": null,
+    "choices": [
+      { "choiceId": "c1", "label": "result = 3 + 4" },
+      { "choiceId": "c2", "label": "result = 3 * 4" },
+      { "choiceId": "c3", "label": "result = 12 / 6" },
+      { "choiceId": "c4", "label": "result = 12 - 3" }
+    ],
+    "answerFormat": "single_choice",
+    "correctAnswer": "c2",
+    "supportedErrorTags": ["value_tracking_error"],
+    "hintTemplateId": "hint_concept_explanation_01",
+    "feedbackTemplateId": "feedback_needs_review_01",
+    "estimatedTimeSec": 40,
+    "difficulty": "easy",
+    "isActive": true
+  },
+  {
+    "taskId": "py_practice_var_04",
+    "conceptId": "py_c01_variables",
+    "taskType": "trace_reasoning",
+    "modeTags": ["steady_practice", "concept_repair"],
+    "prompt": "What is the value of `y` after the second line runs?",
+    "codeSnippet": "x = 2\ny = x + 6",
+    "choices": [
+      { "choiceId": "c1", "label": "2" },
+      { "choiceId": "c2", "label": "6" },
+      { "choiceId": "c3", "label": "8" },
+      { "choiceId": "c4", "label": "26" }
+    ],
+    "answerFormat": "single_choice",
+    "correctAnswer": "c3",
+    "supportedErrorTags": ["value_tracking_error"],
+    "hintTemplateId": "hint_step_breakdown_01",
+    "feedbackTemplateId": "feedback_needs_another_check_01",
+    "estimatedTimeSec": 45,
+    "difficulty": "easy",
+    "isActive": true
+  }
+]

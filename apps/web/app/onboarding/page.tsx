@@ -1,54 +1,150 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/src/components/page-header";
 import { StatePanel } from "@/src/components/state-panel";
 import { StickyActionBar } from "@/src/components/sticky-action-bar";
 import { StudentShell } from "@/src/components/student-shell";
-import { fetchActiveUnits, submitOnboarding, type ActiveUnit } from "@/src/lib/api";
+import {
+  submitOnboarding,
+  type BiggestDifficulty,
+  type CurrentComfortLevel,
+  type HelpKind,
+  type PriorProgrammingExposure,
+} from "@/src/lib/api";
+
+const priorProgrammingExposureOptions: Array<{
+  value: PriorProgrammingExposure;
+  label: string;
+  helper: string;
+}> = [
+  {
+    value: "none",
+    label: "None yet",
+    helper: "You're just getting started with Python or programming.",
+  },
+  {
+    value: "school_basics",
+    label: "School basics",
+    helper: "You've seen simple exercises or class examples before.",
+  },
+  {
+    value: "self_taught_basics",
+    label: "Self-taught basics",
+    helper: "You've tried learning on your own through videos or tutorials.",
+  },
+  {
+    value: "completed_intro_course",
+    label: "Completed intro course",
+    helper: "You've already finished one intro-style programming course.",
+  },
+];
+
+const comfortLevelOptions: Array<{
+  value: CurrentComfortLevel;
+  label: string;
+  helper: string;
+}> = [
+  {
+    value: "very_low",
+    label: "Very low",
+    helper: "Python still feels unfamiliar most of the time.",
+  },
+  {
+    value: "low",
+    label: "Low",
+    helper: "You can follow some basics, but you still get stuck often.",
+  },
+  {
+    value: "medium",
+    label: "Medium",
+    helper: "You can work through short tasks, but you want steadier progress.",
+  },
+];
+
+const biggestDifficultyOptions: Array<{
+  value: BiggestDifficulty;
+  label: string;
+  helper: string;
+}> = [
+  {
+    value: "reading_code",
+    label: "Reading code",
+    helper: "Understanding what code is doing line by line is the hardest part.",
+  },
+  {
+    value: "writing_syntax",
+    label: "Writing syntax",
+    helper: "You often know the idea, but typing the Python form is hard.",
+  },
+  {
+    value: "tracing_logic",
+    label: "Tracing logic",
+    helper: "You lose track of values, conditions, or loop flow while solving.",
+  },
+  {
+    value: "debugging_errors",
+    label: "Debugging errors",
+    helper: "Fixing mistakes and knowing what to try next feels hardest.",
+  },
+];
+
+const preferredHelpStyleOptions: Array<{
+  value: HelpKind;
+  label: string;
+  helper: string;
+}> = [
+  {
+    value: "step_breakdown",
+    label: "Step breakdown",
+    helper: "You like a problem split into smaller steps.",
+  },
+  {
+    value: "worked_example",
+    label: "Worked example",
+    helper: "You learn best by seeing one clear example first.",
+  },
+  {
+    value: "debugging_hint",
+    label: "Debugging hint",
+    helper: "You prefer a nudge toward the next fix instead of the full answer.",
+  },
+  {
+    value: "concept_explanation",
+    label: "Concept explanation",
+    helper: "You want the main idea explained before trying again.",
+  },
+];
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const [examDate, setExamDate] = useState("");
-  const [activeUnitId, setActiveUnitId] = useState("");
-  const [activeUnits, setActiveUnits] = useState<ActiveUnit[]>([]);
-  const [loadingUnits, setLoadingUnits] = useState(true);
+  const [priorProgrammingExposure, setPriorProgrammingExposure] = useState<
+    PriorProgrammingExposure | ""
+  >("");
+  const [currentComfortLevel, setCurrentComfortLevel] = useState<
+    CurrentComfortLevel | ""
+  >("");
+  const [biggestDifficulty, setBiggestDifficulty] = useState<
+    BiggestDifficulty | ""
+  >("");
+  const [preferredHelpStyle, setPreferredHelpStyle] = useState<HelpKind | "">("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadUnits() {
-      try {
-        const payload = await fetchActiveUnits();
-        if (cancelled) {
-          return;
-        }
-
-        setActiveUnits(payload);
-      } catch {
-        if (!cancelled) {
-          setError("Unable to load active units.");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoadingUnits(false);
-        }
-      }
-    }
-
-    void loadUnits();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const isFormValid = useMemo(() => {
-    return /^\d{4}-\d{2}-\d{2}$/.test(examDate) && activeUnitId.length > 0;
-  }, [activeUnitId, examDate]);
+    return Boolean(
+      priorProgrammingExposure &&
+        currentComfortLevel &&
+        biggestDifficulty &&
+        preferredHelpStyle,
+    );
+  }, [
+    biggestDifficulty,
+    currentComfortLevel,
+    preferredHelpStyle,
+    priorProgrammingExposure,
+  ]);
 
   async function handleSubmit() {
     if (!isFormValid || isSubmitting) {
@@ -59,14 +155,20 @@ export default function OnboardingPage() {
     setError("");
 
     try {
+      const onboardingPayload = {
+        priorProgrammingExposure: priorProgrammingExposure as PriorProgrammingExposure,
+        currentComfortLevel: currentComfortLevel as CurrentComfortLevel,
+        biggestDifficulty: biggestDifficulty as BiggestDifficulty,
+        preferredHelpStyle: preferredHelpStyle as HelpKind,
+      };
+
       const payload = await submitOnboarding({
-        examDate,
-        activeUnitId,
+        ...onboardingPayload,
       });
 
       router.replace(payload.nextRoute);
     } catch {
-      setError("We couldn't save your setup. Try again.");
+      setError("We couldn't save your programming setup yet. Try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -75,30 +177,31 @@ export default function OnboardingPage() {
   return (
     <StudentShell>
       <PageHeader
-        detail="Two details now give TwinCoach the right starting point for the rest of your learner flow."
-        eyebrow="Welcome to TwinCoach"
-        subtitle="Set your exam date and current unit so your study plan starts in the right place."
-        title="Start with a focused study plan"
+        detail="Four short choices help TwinCoach shape your first Python diagnostic and your first guided study plan."
+        eyebrow="Programming setup"
+        subtitle="We'll use this to start at the right pace and choose the most helpful style of support."
+        title="Start your programming study state"
       />
       <section className="flex flex-1 flex-col gap-4 px-4 pb-6">
         <div className="rounded-[2rem] border border-blue-100 bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] p-5 shadow-sm">
           <div className="flex flex-wrap gap-2">
             <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">
+              Python CS1
+            </span>
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
               Under 1 minute
             </span>
             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-              2 details only
-            </span>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-              College Algebra focused
+              4 short choices
             </span>
           </div>
           <div className="mt-4 text-lg font-semibold text-[var(--text)]">
-            We'll turn this into your first diagnostic and today's starting plan.
+            This gives TwinCoach the first reliable picture of how to guide your Python practice.
           </div>
           <div className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
-            This does not change your course. It simply helps TwinCoach start at the right pace
-            and level for your exam timeline.
+            We are not trying to label you. We are only setting a calm starting point for
+            your diagnostic, your first session mode, and the kind of help that is most
+            useful when you get stuck.
           </div>
         </div>
 
@@ -108,52 +211,154 @@ export default function OnboardingPage() {
               Your setup
             </div>
             <div className="mt-2 text-base font-semibold text-[var(--text)]">
-              Give us the two details that shape your first study step.
+              Choose the four details that shape your first study step.
             </div>
           </div>
 
           <div className="flex flex-col gap-5">
             <label className="flex flex-col gap-2 rounded-[1.5rem] border border-[var(--border)] bg-white p-4 shadow-sm">
               <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                Exam date
+                Prior exposure
               </span>
-              <span className="text-base font-semibold text-[var(--text)]">When is the exam?</span>
+              <span className="text-base font-semibold text-[var(--text)]">
+                How much programming have you done before?
+              </span>
               <span className="text-sm leading-6 text-[var(--text-muted)]">
-                We use this to keep your plan paced and realistic.
+                Pick the closest match. This helps us set the starting pace.
               </span>
-              <input
+              <select
                 className="min-h-14 rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-base shadow-sm"
-                onChange={(event) => setExamDate(event.target.value)}
-                type="date"
-                value={examDate}
-              />
+                onChange={(event) =>
+                  setPriorProgrammingExposure(
+                    event.target.value as PriorProgrammingExposure | "",
+                  )
+                }
+                value={priorProgrammingExposure}
+              >
+                <option value="">Select your prior exposure</option>
+                {priorProgrammingExposureOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              {priorProgrammingExposure ? (
+                <span className="text-sm text-[var(--text-muted)]">
+                  {
+                    priorProgrammingExposureOptions.find(
+                      (option) => option.value === priorProgrammingExposure,
+                    )?.helper
+                  }
+                </span>
+              ) : null}
             </label>
 
             <label className="flex flex-col gap-2 rounded-[1.5rem] border border-[var(--border)] bg-white p-4 shadow-sm">
               <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                Current unit
+                Comfort level
               </span>
               <span className="text-base font-semibold text-[var(--text)]">
-                What are you covering now?
+                How comfortable do you feel with Python right now?
               </span>
               <span className="text-sm leading-6 text-[var(--text-muted)]">
-                Pick the unit you are covering now so your starting point makes sense.
+                This helps us keep the first diagnostic fair and focused.
               </span>
               <select
                 className="min-h-14 rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-base shadow-sm"
-                disabled={loadingUnits}
-                onChange={(event) => setActiveUnitId(event.target.value)}
-                value={activeUnitId}
+                onChange={(event) =>
+                  setCurrentComfortLevel(
+                    event.target.value as CurrentComfortLevel | "",
+                  )
+                }
+                value={currentComfortLevel}
               >
-                <option value="">Select your current unit</option>
-                {activeUnits.map((unit) => (
-                  <option key={unit.activeUnitId} value={unit.activeUnitId}>
-                    {unit.sequenceOrder}. {unit.learnerFacingLabel}
+                <option value="">Select your comfort level</option>
+                {comfortLevelOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
                   </option>
                 ))}
               </select>
-              {loadingUnits ? (
-                <span className="text-sm text-[var(--text-muted)]">Loading your available units...</span>
+              {currentComfortLevel ? (
+                <span className="text-sm text-[var(--text-muted)]">
+                  {
+                    comfortLevelOptions.find(
+                      (option) => option.value === currentComfortLevel,
+                    )?.helper
+                  }
+                </span>
+              ) : null}
+            </label>
+
+            <label className="flex flex-col gap-2 rounded-[1.5rem] border border-[var(--border)] bg-white p-4 shadow-sm">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                Biggest difficulty
+              </span>
+              <span className="text-base font-semibold text-[var(--text)]">
+                What feels hardest when you study programming?
+              </span>
+              <span className="text-sm leading-6 text-[var(--text-muted)]">
+                This gives TwinCoach an early clue about where support should start.
+              </span>
+              <select
+                className="min-h-14 rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-base shadow-sm"
+                onChange={(event) =>
+                  setBiggestDifficulty(
+                    event.target.value as BiggestDifficulty | "",
+                  )
+                }
+                value={biggestDifficulty}
+              >
+                <option value="">Select your biggest difficulty</option>
+                {biggestDifficultyOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              {biggestDifficulty ? (
+                <span className="text-sm text-[var(--text-muted)]">
+                  {
+                    biggestDifficultyOptions.find(
+                      (option) => option.value === biggestDifficulty,
+                    )?.helper
+                  }
+                </span>
+              ) : null}
+            </label>
+
+            <label className="flex flex-col gap-2 rounded-[1.5rem] border border-[var(--border)] bg-white p-4 shadow-sm">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                Help style
+              </span>
+              <span className="text-base font-semibold text-[var(--text)]">
+                What kind of support usually helps you most?
+              </span>
+              <span className="text-sm leading-6 text-[var(--text-muted)]">
+                We'll prefer this style when we offer guidance during practice.
+              </span>
+              <select
+                className="min-h-14 rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-base shadow-sm"
+                onChange={(event) =>
+                  setPreferredHelpStyle(event.target.value as HelpKind | "")
+                }
+                value={preferredHelpStyle}
+              >
+                <option value="">Select your preferred help style</option>
+                {preferredHelpStyleOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              {preferredHelpStyle ? (
+                <span className="text-sm text-[var(--text-muted)]">
+                  {
+                    preferredHelpStyleOptions.find(
+                      (option) => option.value === preferredHelpStyle,
+                    )?.helper
+                  }
+                </span>
               ) : null}
             </label>
           </div>
@@ -169,10 +374,10 @@ export default function OnboardingPage() {
         ) : null}
       </section>
       <StickyActionBar
-        disabled={!isFormValid || isSubmitting || loadingUnits}
+        disabled={!isFormValid || isSubmitting}
         label={isSubmitting ? "Saving your setup..." : "Save and start diagnostic"}
         onClick={handleSubmit}
-        supportingText="Next: a short diagnostic that helps TwinCoach build your starting plan."
+        supportingText="Next: a short Python diagnostic that helps TwinCoach build your first programming state."
       />
     </StudentShell>
   );
