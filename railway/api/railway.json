@@ -14,7 +14,7 @@
     ]
   },
   "deploy": {
-    "preDeployCommand": "pnpm migrate:deploy:api",
+    "preDeployCommand": "pnpm migrate:deploy:api && pnpm seed:api:week1",
     "startCommand": "pnpm start:api",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 120,
