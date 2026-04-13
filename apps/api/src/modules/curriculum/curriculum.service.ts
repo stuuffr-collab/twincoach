@@ -6,6 +6,7 @@ import {
 } from "@prisma/client";
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { ProgrammingFixtureService } from "./programming-fixture.service";
 
 const GENERIC_FEEDBACK: Record<FeedbackType, string> = {
   correct: "Correct.",
@@ -17,13 +18,18 @@ const GENERIC_FEEDBACK: Record<FeedbackType, string> = {
 
 @Injectable()
 export class CurriculumService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly programmingFixtureService: ProgrammingFixtureService,
+  ) {}
 
   getProgrammingUnitId() {
     return "python_cs1_v1";
   }
 
   async getProgrammingConcepts() {
+    await this.programmingFixtureService.ensureProgrammingFixtures();
+
     return this.prisma.programmingConcept.findMany({
       where: { isActive: true },
       orderBy: { sequenceOrder: "asc" },
@@ -31,6 +37,8 @@ export class CurriculumService {
   }
 
   async getDiagnosticTasks() {
+    await this.programmingFixtureService.ensureProgrammingFixtures();
+
     return this.prisma.programmingTask.findMany({
       where: {
         taskSetRole: ProgrammingTaskSetRole.diagnostic,
@@ -50,6 +58,8 @@ export class CurriculumService {
   }
 
   async getPracticeTasks() {
+    await this.programmingFixtureService.ensureProgrammingFixtures();
+
     return this.prisma.programmingTask.findMany({
       where: {
         taskSetRole: ProgrammingTaskSetRole.practice,
@@ -74,6 +84,8 @@ export class CurriculumService {
   }
 
   async getTaskById(taskId: string) {
+    await this.programmingFixtureService.ensureProgrammingFixtures();
+
     return this.prisma.programmingTask.findUnique({
       where: { id: taskId },
       include: {
@@ -85,6 +97,8 @@ export class CurriculumService {
   }
 
   async getTasksByIds(taskIds: string[]) {
+    await this.programmingFixtureService.ensureProgrammingFixtures();
+
     const tasks = await this.prisma.programmingTask.findMany({
       where: {
         id: {
@@ -107,6 +121,8 @@ export class CurriculumService {
     preferredHelpStyle: HelpKind;
     fallbackHintTemplateId?: string | null;
   }) {
+    await this.programmingFixtureService.ensureProgrammingFixtures();
+
     const templates = await this.prisma.programmingHintTemplate.findMany({
       orderBy: { id: "asc" },
     });
@@ -154,6 +170,8 @@ export class CurriculumService {
     summaryField: "whatImproved" | "whatNeedsSupport" | "studyPatternObserved" | "nextBestAction";
     triggerCode: string;
   }) {
+    await this.programmingFixtureService.ensureProgrammingFixtures();
+
     const template = await this.prisma.programmingSummaryTemplate.findFirst({
       where: {
         summaryField: input.summaryField,
