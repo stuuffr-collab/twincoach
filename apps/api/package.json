@@ -2,9 +2,9 @@
   "name": "@twincoach/api",
   "private": true,
   "scripts": {
-    "start": "node dist/main.js",
+    "start": "node dist/apps/api/src/main.js",
     "start:dev": "nest start --watch",
-    "build": "nest build",
+    "build": "node -e \"require('fs').rmSync('dist',{ recursive: true, force: true })\" && nest build",
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
