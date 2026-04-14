@@ -20,7 +20,23 @@ import practiceTasksTracing from "../../../content/programming_v1/practice_tasks
 import practiceTasksVariables from "../../../content/programming_v1/practice_tasks_variables.json";
 import summaryTemplates from "../../../content/programming_v1/summary_templates.json";
 
-process.loadEnvFile?.(".env");
+function loadLocalEnvIfPresent() {
+  try {
+    process.loadEnvFile?.(".env");
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) {
+      return;
+    }
+
+    throw error;
+  }
+}
+
+loadLocalEnvIfPresent();
 
 const prisma = new PrismaClient();
 
