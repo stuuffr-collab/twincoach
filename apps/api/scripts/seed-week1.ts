@@ -20,7 +20,7 @@ import practiceTasksTracing from "../../../content/programming_v1/practice_tasks
 import practiceTasksVariables from "../../../content/programming_v1/practice_tasks_variables.json";
 import summaryTemplates from "../../../content/programming_v1/summary_templates.json";
 
-process.loadEnvFile?.(".env");
+// process.loadEnvFile?.(".env");
 
 const prisma = new PrismaClient();
 
