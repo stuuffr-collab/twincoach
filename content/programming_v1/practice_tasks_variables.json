@@ -4,7 +4,7 @@
     "conceptId": "py_c01_variables",
     "taskType": "output_prediction",
     "modeTags": ["steady_practice", "concept_repair", "recovery_mode"],
-    "prompt": "What does this code print?",
+    "prompt": "ماذا سيطبع هذا الكود؟",
     "codeSnippet": "apples = 3\napples = apples + 2\nprint(apples)",
     "choices": [
       { "choiceId": "c1", "label": "3" },
@@ -26,7 +26,7 @@
     "conceptId": "py_c01_variables",
     "taskType": "code_completion",
     "modeTags": ["steady_practice", "concept_repair"],
-    "prompt": "Fill in the missing expression so `total` becomes 9.",
+    "prompt": "أكمل التعبير الناقص حتى تصبح قيمة `total` مساوية لـ 9.",
     "codeSnippet": "start = 4\ntotal = start + ____",
     "choices": [],
     "answerFormat": "short_text",
@@ -43,7 +43,7 @@
     "conceptId": "py_c01_variables",
     "taskType": "concept_choice",
     "modeTags": ["steady_practice", "concept_repair", "recovery_mode"],
-    "prompt": "Which line stores the value 12 in `result`?",
+    "prompt": "أي سطر يخزن القيمة 12 في `result`؟",
     "codeSnippet": null,
     "choices": [
       { "choiceId": "c1", "label": "result = 3 + 4" },
@@ -65,7 +65,7 @@
     "conceptId": "py_c01_variables",
     "taskType": "trace_reasoning",
     "modeTags": ["steady_practice", "concept_repair"],
-    "prompt": "What is the value of `y` after the second line runs?",
+    "prompt": "ما قيمة `y` بعد تنفيذ السطر الثاني؟",
     "codeSnippet": "x = 2\ny = x + 6",
     "choices": [
       { "choiceId": "c1", "label": "2" },

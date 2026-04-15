@@ -13,19 +13,19 @@ const feedbackStyles: Record<
 > = {
   correct: {
     container: "border-green-200 bg-green-50 text-green-900",
-    label: "Correct",
+    label: "اتجاهك صحيح",
   },
   needs_review: {
     container: "border-amber-200 bg-amber-50 text-amber-900",
-    label: "Review this idea",
+    label: "نراجع الفكرة",
   },
   try_fix: {
     container: "border-blue-200 bg-blue-50 text-blue-900",
-    label: "Try the setup again",
+    label: "نجرب تعديلًا صغيرًا",
   },
   needs_another_check: {
     container: "border-slate-200 bg-slate-50 text-slate-900",
-    label: "One more check",
+    label: "نحتاج فحصًا أخيرًا",
   },
 };
 
@@ -37,15 +37,13 @@ export function FeedbackCard({
   const content = feedbackStyles[feedbackType];
 
   return (
-    <div className={`rounded-2xl border p-4 shadow-sm ${content.container}`}>
-      <div className="text-[11px] font-semibold uppercase tracking-[0.16em]">
-        {content.label}
-      </div>
-      <div className="mt-2 text-sm leading-6">{feedbackText}</div>
-      <div className="mt-3 text-xs leading-5 text-[var(--text-muted)]">
+    <div className={`motion-reveal rounded-[1.5rem] border p-4 shadow-sm ${content.container}`}>
+      <div className="text-xs font-semibold">{content.label}</div>
+      <div className="mt-2 text-sm leading-7">{feedbackText}</div>
+      <div className="mt-3 text-[0.8rem] leading-6 text-[var(--text-muted)]">
         {context === "diagnostic"
-          ? "This helps us place your next study step more accurately."
-          : "Use this signal to move through today's session one step at a time."}
+          ? "نستخدم هذه الإشارة لضبط نقطة البداية."
+          : "هذه الإشارة تساعدنا نحدد الخطوة التالية."}
       </div>
     </div>
   );

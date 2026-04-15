@@ -229,7 +229,7 @@ export class BootstrapService {
     );
 
     const payload = {
-      screenTitle: "Your Programming State",
+      screenTitle: "حالتك البرمجية اليوم",
       programmingStateCode: decision.programmingStateCode,
       programmingStateLabel: decision.programmingStateLabel,
       focusConceptId: decision.focusConceptId,
@@ -240,8 +240,8 @@ export class BootstrapService {
       rationaleText: decision.rationaleText,
       nextStepText: decision.nextStepText,
       primaryActionLabel: activeDailySession
-        ? "Resume today's session"
-        : "Start today's session",
+        ? "متابعة تدريب اليوم"
+        : "ابدأ تدريب اليوم",
       hasActiveDailySession: Boolean(activeDailySession),
       activeSessionId: activeDailySession?.id ?? null,
     };

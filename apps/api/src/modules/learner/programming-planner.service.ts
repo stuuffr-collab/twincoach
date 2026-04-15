@@ -302,10 +302,10 @@ export class ProgrammingPlannerService {
     rationaleCode: PlannerDecision["rationaleCode"];
   }): PlannerDecision {
     const sessionModeLabelMap: Record<SessionMode, string> = {
-      steady_practice: "Steady practice",
-      concept_repair: "Concept repair",
-      debugging_drill: "Debugging drill",
-      recovery_mode: "Recovery mode",
+      steady_practice: "تدريب ثابت",
+      concept_repair: "تقوية الفكرة",
+      debugging_drill: "تدريب على الإصلاح",
+      recovery_mode: "عودة هادئة",
     };
 
     const programmingStateCodeMap: Record<
@@ -322,28 +322,28 @@ export class ProgrammingPlannerService {
       PlannerDecision["programmingStateCode"],
       string
     > = {
-      building_foundations: "Building foundations",
-      debugging_focus: "Debugging focus",
-      steady_progress: "Steady progress",
-      recovery_needed: "Recovery needed",
+      building_foundations: "نبني الأساس",
+      debugging_focus: "نركّز على الإصلاح",
+      steady_progress: "تقدّم ثابت",
+      recovery_needed: "نحتاج عودة هادئة",
     };
 
     const rationaleTextMap: Record<PlannerDecision["rationaleCode"], string> = {
       recent_concept_errors:
-        "Recent work suggests one concept still needs a steadier pass.",
+        "بناءً على عملك الأخير، نعتقد أن هناك فكرة واحدة تحتاج مرورًا أوضح وأكثر ثباتًا.",
       repeated_debugging_errors:
-        "Recent mistakes suggest debugging practice may help most right now.",
+        "أخطاؤك الأخيرة تشير إلى أن تدريب الإصلاح خطوة بخطوة سيكون الأنسب الآن.",
       strong_recent_progress:
-        "Recent work suggests you are ready for a steady practice session.",
+        "أداؤك القريب يشير إلى أنك جاهز لجلسة تدريب ثابتة تبني على ما تحسّن.",
       recent_dropoff:
-        "Recent work suggests a shorter recovery session is the right next step.",
+        "أداؤك القريب يشير إلى أن جلسة أقصر وأهدأ هي الخطوة الصحيحة الآن.",
     };
 
     const nextStepTextMap: Record<SessionMode, string> = {
-      steady_practice: "Work through a short Python practice session.",
-      concept_repair: "Focus on one concept before moving on.",
-      debugging_drill: "Work through debugging one step at a time.",
-      recovery_mode: "Start with a shorter session designed to get you moving again.",
+      steady_practice: "ابدأ جلسة قصيرة تحافظ على تقدّمك في بايثون.",
+      concept_repair: "سنركّز الآن على فكرة واحدة قبل أن نوسّع التدريب.",
+      debugging_drill: "سنأخذك في تدريب منظّم على إصلاح الخطأ خطوة بخطوة.",
+      recovery_mode: "سنبدأ بجلسة أخف تساعدك تعود إلى التقدّم بثبات.",
     };
 
     const programmingStateCode = programmingStateCodeMap[input.sessionMode];

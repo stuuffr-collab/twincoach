@@ -26,7 +26,7 @@ export default function BootPage() {
         router.replace(payload.nextRoute);
       } catch {
         if (!cancelled) {
-          setError("Unable to load your start state.");
+          setError("تعذّر تحميل بداية مسارك الآن.");
         }
       }
     }
@@ -41,28 +41,28 @@ export default function BootPage() {
   return (
     <StudentShell>
       <PageHeader
-        detail="New learners start with a short setup. Returning learners resume the right programming step automatically."
+        detail="إذا كانت هذه بدايتك، سنبني نقطة انطلاق مناسبة لك. وإذا كنت عائدًا، سنرجعك مباشرة إلى الخطوة البرمجية الصحيحة."
         eyebrow="TwinCoach"
-        subtitle="Your calm programming study twin for Python foundations."
-        title="Start with a clear next step"
+        subtitle="رفيقك العربي الهادئ لتعلّم أساسيات بايثون خطوة بخطوة."
+        title="ابدأ من الخطوة الأنسب لك"
       />
       <section className="flex flex-1 flex-col gap-3 px-4 pb-6">
         <div className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-            How it works
+          <div className="text-xs font-semibold text-[var(--text-muted)]">
+            كيف يسير المسار
           </div>
-          <div className="mt-3 flex flex-col gap-3 text-sm leading-6 text-[var(--text-muted)]">
+          <div className="mt-3 flex flex-col gap-3 text-sm leading-7 text-[var(--text-muted)]">
             <div>
-              <span className="font-semibold text-[var(--text)]">1.</span> Set your starting
-              programming profile.
+              <span className="font-semibold text-[var(--text)]">1.</span> نضبط نقطة البداية
+              المناسبة لك.
             </div>
             <div>
-              <span className="font-semibold text-[var(--text)]">2.</span> Complete a short
-              diagnostic to build your first programming state.
+              <span className="font-semibold text-[var(--text)]">2.</span> نأخذك في تهيئة
+              قصيرة لفهم حالتك البرمجية.
             </div>
             <div>
-              <span className="font-semibold text-[var(--text)]">3.</span> Follow today's
-              guided Python session one step at a time.
+              <span className="font-semibold text-[var(--text)]">3.</span> نفتح لك تدريب
+              اليوم خطوة واحدة في كل مرة.
             </div>
           </div>
         </div>
@@ -70,26 +70,26 @@ export default function BootPage() {
         {error ? (
           <StatePanel
             description={error}
-            eyebrow="Start state"
-            title="We couldn't load your next step."
+            eyebrow="بداية المسار"
+            title="تعذّر علينا فتح خطوتك التالية الآن."
             tone="error"
           />
         ) : (
           <StatePanel
             description={
               bootState
-                ? "We found your next step and are taking you there now."
-                : "This usually takes just a moment."
+                ? "وجدنا خطوتك التالية وسنأخذك إليها الآن."
+                : "هذا يستغرق لحظة قصيرة فقط."
             }
-            eyebrow="Getting ready"
+            eyebrow="نحضّر المسار"
             title={
               bootState
                 ? bootState.nextRoute === "/onboarding"
-                  ? "Opening your study setup"
+                  ? "نفتح بداية مسارك"
                   : bootState.nextRoute === "/diagnostic"
-                    ? "Resuming your diagnostic"
-                    : "Loading today's plan"
-                : "Checking your saved study state"
+                    ? "نرجعك إلى التهيئة الأولى"
+                    : "نحمّل تدريب اليوم"
+                : "نراجع حالتك المحفوظة"
             }
             tone="loading"
           />

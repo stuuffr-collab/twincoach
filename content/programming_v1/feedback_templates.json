@@ -2,25 +2,25 @@
   {
     "feedbackTemplateId": "feedback_correct_01",
     "feedbackType": "correct",
-    "templateText": "Correct.",
+    "templateText": "هذه خطوة موفقة.",
     "allowedTaskTypes": ["output_prediction", "trace_reasoning", "bug_spotting", "code_completion", "concept_choice"]
   },
   {
     "feedbackTemplateId": "feedback_needs_review_01",
     "feedbackType": "needs_review",
-    "templateText": "That answer is not correct. Review the main idea before moving on.",
+    "templateText": "هذه الإجابة ليست الأدق بعد. لنراجع الفكرة الرئيسية قبل المتابعة.",
     "allowedTaskTypes": ["output_prediction", "trace_reasoning", "concept_choice"]
   },
   {
     "feedbackTemplateId": "feedback_try_fix_01",
     "feedbackType": "try_fix",
-    "templateText": "That answer is not correct. Check the key step and try one fix.",
+    "templateText": "هذه الإجابة ليست الأدق بعد. راجع الخطوة الأساسية وجرّب تعديلًا واحدًا.",
     "allowedTaskTypes": ["bug_spotting", "code_completion", "concept_choice"]
   },
   {
     "feedbackTemplateId": "feedback_needs_another_check_01",
     "feedbackType": "needs_another_check",
-    "templateText": "That answer is not correct. We need one more careful check before moving on.",
+    "templateText": "هذه الإجابة ليست الأدق بعد. نحتاج فحصًا أخيرًا بهدوء قبل المتابعة.",
     "allowedTaskTypes": ["trace_reasoning", "output_prediction", "bug_spotting"]
   }
 ]

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnswerInputSwitcher } from "@/src/components/answer-input-switcher";
 import { FeedbackCard } from "@/src/components/feedback-card";
+import { InlineReveal } from "@/src/components/inline-reveal";
 import { PageHeader } from "@/src/components/page-header";
 import { ProgressBar } from "@/src/components/progress-bar";
 import { QuestionCard } from "@/src/components/question-card";
@@ -51,7 +52,7 @@ export default function DiagnosticPage() {
         }
 
         if (!cancelled) {
-          setError("Unable to load your programming diagnostic.");
+          setError("تعذّر تحميل خطوة التهيئة الأولى الآن.");
         }
       } finally {
         if (!cancelled) {
@@ -158,9 +159,7 @@ export default function DiagnosticPage() {
           submitError.message === "Duplicate submit" ||
           submitError.message === "Session item mismatch"
         ) {
-          await recoverLatestSession(
-            "We refreshed your latest saved question so you can keep going safely.",
-          );
+          await recoverLatestSession("أعدنا آخر خطوة محفوظة حتى تتابع بأمان.");
           return;
         }
 
@@ -173,7 +172,7 @@ export default function DiagnosticPage() {
         }
       }
 
-      setError("We couldn't save that answer yet. Your diagnostic is still safe.");
+      setError("تعذّر حفظ هذه الخطوة الآن، لكن تقدّمك ما زال محفوظًا.");
     } finally {
       setIsSubmitting(false);
     }
@@ -209,7 +208,7 @@ export default function DiagnosticPage() {
         return;
       }
 
-      setError("We couldn't load the next diagnostic step yet. Try again.");
+      setError("تعذّر تحميل خطوة التهيئة التالية الآن. جرّب مرة أخرى.");
     } finally {
       setIsAdvancing(false);
     }
@@ -238,44 +237,42 @@ export default function DiagnosticPage() {
         return;
       }
 
-      setError("We couldn't restore your saved diagnostic state. Refresh and try again.");
+      setError("تعذّر استعادة حالة التهيئة المحفوظة. حدّث الصفحة ثم جرّب مرة أخرى.");
     }
   }
 
   const primaryLabel = feedback
     ? feedback.sessionStatus === "completed"
-      ? "Go to Your Programming State"
-      : "Continue"
+      ? "الانتقال إلى حالتك اليوم"
+      : "متابعة"
     : isSubmitting
-      ? "Saving..."
-      : "Submit answer";
+      ? "نثبّت الإجابة..."
+      : "تثبيت الإجابة";
 
   return (
     <StudentShell>
       <PageHeader
-        detail="This is a short setup step. It is not graded. It only helps TwinCoach choose the right first study mode."
-        eyebrow="Programming diagnostic"
-        subtitle="Answer one short programming task at a time so we can build your first Python study state."
-        title="Build your starting programming plan"
+        eyebrow="التهيئة الأولى"
+        subtitle="خطوات قصيرة وآمنة حتى نفهم من أين نبدأ معك."
+        title="نضبط نقطة البداية"
       />
 
       {session ? (
         <ProgressBar
-          badgeText="Not graded"
+          badgeText="ليست درجة"
           currentIndex={session.currentIndex}
-          label="Diagnostic progress"
-          supportingText="Take your best next step on each task. We use this to shape your first guided practice session."
+          label="تقدّم التهيئة"
           tone="diagnostic"
           totalItems={session.totalItems}
         />
       ) : null}
 
-      <section className="flex flex-1 flex-col gap-4 px-4 py-4">
+      <section className="flex flex-1 flex-col gap-4 px-4 py-4 md:px-6">
         {loading ? (
           <StatePanel
-            description="We're opening the short Python setup tasks that shape your first study plan."
-            eyebrow="Diagnostic setup"
-            title="Getting your diagnostic ready..."
+            description="نحضّر أول خطوة قصيرة لك."
+            eyebrow="تهيئة البداية"
+            title="نجهّز البداية..."
             tone="loading"
           />
         ) : null}
@@ -283,29 +280,48 @@ export default function DiagnosticPage() {
         {error ? (
           <StatePanel
             description={error}
-            eyebrow="Diagnostic update"
-            title="We hit a temporary issue."
-            tone={error.includes("refreshed") || error.includes("restore") ? "recovery" : "error"}
+            eyebrow="تحديث التهيئة"
+            title="ظهر خلل مؤقت."
+            tone={error.includes("أعدنا") || error.includes("استعادة") ? "recovery" : "error"}
           />
         ) : null}
 
         {session ? (
-          <QuestionCard
-            codeSnippet={session.currentTask.codeSnippet}
-            eyebrow="Diagnostic task"
-            helper={session.currentTask.helperText}
-            stem={session.currentTask.prompt}
-            taskTypeLabel={getProgrammingTaskTypeLabel(session.currentTask.taskType)}
-            tone="diagnostic"
-          >
-            <AnswerInputSwitcher
-              answerFormat={session.currentTask.answerFormat}
-              choices={session.currentTask.choices}
-              onChange={handleAnswerChange}
-              taskType={session.currentTask.taskType}
-              value={answerValue}
-            />
-          </QuestionCard>
+          <>
+            <div className="motion-rise stage-card rounded-[1.85rem] p-5">
+              <div className="flex flex-wrap gap-2">
+                <span className="support-chip">خطوة آمنة وغير تقييمية</span>
+                <span className="inline-flex rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-sm font-medium text-[var(--text)] shadow-sm">
+                  نتعلّم كيف نوجّه تدريبك
+                </span>
+              </div>
+              <div className="mt-4 text-sm leading-7 text-[var(--text)]">
+                لا نبحث هنا عن إجابة مثالية من أول مرة، بل عن أفضل نقطة انطلاق لك.
+              </div>
+              <div className="mt-4">
+                <InlineReveal label="لماذا هذه الخطوة؟" tone="soft">
+                  نستخدم هذه الخطوات القصيرة لنفهم أين يبدأ التركيز، وما نوع الدعم الذي يفيدك أكثر.
+                </InlineReveal>
+              </div>
+            </div>
+
+            <QuestionCard
+              codeSnippet={session.currentTask.codeSnippet}
+              eyebrow="خطوة تهيئة"
+              helper={session.currentTask.helperText}
+              stem={session.currentTask.prompt}
+              taskTypeLabel={getProgrammingTaskTypeLabel(session.currentTask.taskType)}
+              tone="diagnostic"
+            >
+              <AnswerInputSwitcher
+                answerFormat={session.currentTask.answerFormat}
+                choices={session.currentTask.choices}
+                onChange={handleAnswerChange}
+                taskType={session.currentTask.taskType}
+                value={answerValue}
+              />
+            </QuestionCard>
+          </>
         ) : null}
 
         {feedback ? (
@@ -330,9 +346,9 @@ export default function DiagnosticPage() {
         supportingText={
           feedback
             ? feedback.sessionStatus === "completed"
-              ? "We'll take you straight to Your Programming State."
-              : "Your answer is saved. Continue when you're ready."
-            : "Each diagnostic answer is saved before the next task appears."
+              ? "بعد هذه الخطوة ننتقل إلى حالتك اليوم."
+              : "خطوتك محفوظة، ويمكنك المتابعة."
+            : "نحفظ كل خطوة قبل الانتقال لما بعدها."
         }
       />
     </StudentShell>

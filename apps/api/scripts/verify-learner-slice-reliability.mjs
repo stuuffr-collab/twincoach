@@ -81,7 +81,7 @@ function getWrongAnswer(task) {
 }
 
 function assertProgrammingStateShape(payload) {
-  assert.equal(payload.screenTitle, "Your Programming State");
+  assert.equal(payload.screenTitle, "حالتك البرمجية اليوم");
   assert.match(
     payload.programmingStateCode,
     /^(building_foundations|debugging_focus|steady_progress|recovery_needed)$/,
@@ -99,10 +99,7 @@ function assertProgrammingStateShape(payload) {
   );
   assert.ok(payload.rationaleText);
   assert.ok(payload.nextStepText);
-  assert.match(
-    payload.primaryActionLabel,
-    /^(Start today's session|Resume today's session)$/,
-  );
+  assert.match(payload.primaryActionLabel, /^(ابدأ تدريب اليوم|متابعة تدريب اليوم)$/);
 }
 
 async function run() {
@@ -251,7 +248,7 @@ async function run() {
   assertProgrammingStateShape(todayBeforeDaily.data);
   assert.equal(todayBeforeDaily.data.hasActiveDailySession, false);
   assert.equal(todayBeforeDaily.data.activeSessionId, null);
-  assert.equal(todayBeforeDaily.data.primaryActionLabel, "Start today's session");
+  assert.equal(todayBeforeDaily.data.primaryActionLabel, "ابدأ تدريب اليوم");
 
   const dailyStart = await request("/session/create-or-resume", {
     method: "POST",
@@ -274,7 +271,7 @@ async function run() {
   assertProgrammingStateShape(todayDuringActiveDaily.data);
   assert.equal(todayDuringActiveDaily.data.hasActiveDailySession, true);
   assert.equal(todayDuringActiveDaily.data.activeSessionId, dailyStart.data.sessionId);
-  assert.equal(todayDuringActiveDaily.data.primaryActionLabel, "Resume today's session");
+  assert.equal(todayDuringActiveDaily.data.primaryActionLabel, "متابعة تدريب اليوم");
 
   const dailyResume = await request("/session/create-or-resume", {
     method: "POST",
@@ -405,7 +402,7 @@ async function run() {
     /^(recovered_after_mistake|steady_throughout|hesitated_but_completed|needed_hint_to_progress)$/,
   );
   assert.equal(summary.data.nextBestAction.route, "/today");
-  assert.equal(summary.data.nextBestAction.label, "Back to Your Programming State");
+  assert.equal(summary.data.nextBestAction.label, "العودة إلى حالتك البرمجية اليوم");
 
   const todayAfterDaily = await request("/today", {
     headers: learnerHeaders,
@@ -413,7 +410,7 @@ async function run() {
   assert.equal(todayAfterDaily.status, 200);
   assertProgrammingStateShape(todayAfterDaily.data);
   assert.equal(todayAfterDaily.data.hasActiveDailySession, false);
-  assert.equal(todayAfterDaily.data.primaryActionLabel, "Start today's session");
+  assert.equal(todayAfterDaily.data.primaryActionLabel, "ابدأ تدريب اليوم");
 
   console.log("Programming learner slice reliability verification passed.");
 }

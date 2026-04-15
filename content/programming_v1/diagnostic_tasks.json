@@ -3,7 +3,7 @@
     "taskId": "py_diag_01",
     "conceptId": "py_c01_variables",
     "taskType": "output_prediction",
-    "prompt": "What does this code print?",
+    "prompt": "ماذا سيطبع هذا الكود؟",
     "codeSnippet": "x = 4\ny = x + 3\nprint(y)",
     "choices": [
       { "choiceId": "c1", "label": "6" },
@@ -22,7 +22,7 @@
     "taskId": "py_diag_02",
     "conceptId": "py_c02_conditionals",
     "taskType": "concept_choice",
-    "prompt": "Which condition prints `pass` for scores of 70 and higher?",
+    "prompt": "أي شرط يطبع `pass` للدرجات 70 فما فوق؟",
     "codeSnippet": null,
     "choices": [
       { "choiceId": "c1", "label": "if score > 70:" },
@@ -41,7 +41,7 @@
     "taskId": "py_diag_03",
     "conceptId": "py_c03_loops",
     "taskType": "trace_reasoning",
-    "prompt": "What is the final value of `total`?",
+    "prompt": "ما القيمة النهائية لـ `total`؟",
     "codeSnippet": "total = 0\nfor n in [1, 2, 3]:\n    total = total + n",
     "choices": [
       { "choiceId": "c1", "label": "3" },
@@ -60,7 +60,7 @@
     "taskId": "py_diag_04",
     "conceptId": "py_c04_functions",
     "taskType": "code_completion",
-    "prompt": "Complete the return expression so the function returns double the input.",
+    "prompt": "أكمل عبارة return حتى تعيد الدالة ضعف الإدخال.",
     "codeSnippet": "def double(n):\n    return ____",
     "choices": [],
     "answerFormat": "short_text",
@@ -74,7 +74,7 @@
     "taskId": "py_diag_05",
     "conceptId": "py_c05_tracing_state",
     "taskType": "output_prediction",
-    "prompt": "What does this code print?",
+    "prompt": "ماذا سيطبع هذا الكود؟",
     "codeSnippet": "count = 2\ncount = count + 5\ncount = count - 3\nprint(count)",
     "choices": [
       { "choiceId": "c1", "label": "2" },
@@ -93,13 +93,13 @@
     "taskId": "py_diag_06",
     "conceptId": "py_c06_basic_debugging",
     "taskType": "bug_spotting",
-    "prompt": "Which line contains the Python bug?",
+    "prompt": "أي سطر يحتوي الخطأ البرمجي في بايثون؟",
     "codeSnippet": "name = \"Ada\"\nif name = \"Ada\":\n    print(\"match\")",
     "choices": [
-      { "choiceId": "c1", "label": "Line 1" },
-      { "choiceId": "c2", "label": "Line 2" },
-      { "choiceId": "c3", "label": "Line 3" },
-      { "choiceId": "c4", "label": "There is no bug" }
+      { "choiceId": "c1", "label": "السطر 1" },
+      { "choiceId": "c2", "label": "السطر 2" },
+      { "choiceId": "c3", "label": "السطر 3" },
+      { "choiceId": "c4", "label": "لا يوجد خطأ" }
     ],
     "answerFormat": "single_choice",
     "correctAnswer": "c2",

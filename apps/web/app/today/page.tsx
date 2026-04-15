@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { InlineReveal } from "@/src/components/inline-reveal";
 import { PageHeader } from "@/src/components/page-header";
 import { StatePanel } from "@/src/components/state-panel";
 import { StickyActionBar } from "@/src/components/sticky-action-bar";
@@ -13,16 +14,24 @@ import {
   type ProgrammingState,
 } from "@/src/lib/api";
 import {
+  getProgrammingStateLabel,
   getProgrammingStateTone,
+  getSessionModeLabel,
   getSessionModeTone,
 } from "@/src/lib/programming-ui";
 
 function getProgrammingStateSupport(summary: ProgrammingState) {
   if (summary.hasActiveDailySession) {
-    return "Resume the saved session to keep your current progress and continue from the right step.";
+    return "سنفتح لك الجلسة من آخر خطوة محفوظة.";
   }
 
-  return "Start one short guided session to move this programming state forward today.";
+  return "جلسة قصيرة وواضحة تكفي لتثبيت الاتجاه التالي.";
+}
+
+function getShortRationale(summary: ProgrammingState) {
+  return summary.rationaleText.length > 110
+    ? `${summary.rationaleText.slice(0, 107).trim()}...`
+    : summary.rationaleText;
 }
 
 export default function TodayPage() {
@@ -57,7 +66,7 @@ export default function TodayPage() {
         }
 
         if (!cancelled) {
-          setError("Unable to load your programming state.");
+          setError("تعذّر تحميل حالتك البرمجية الآن.");
         }
       } finally {
         if (!cancelled) {
@@ -90,26 +99,34 @@ export default function TodayPage() {
         return;
       }
 
-      setError("Unable to open today's programming session.");
+      setError("تعذّر فتح تدريب اليوم الآن.");
     } finally {
       setIsStarting(false);
     }
   }
 
+  const rationale = useMemo(() => {
+    if (!summary) {
+      return "";
+    }
+
+    return getShortRationale(summary);
+  }, [summary]);
+
   return (
     <StudentShell>
       <PageHeader
-        detail="TwinCoach chooses one calm next step from your recent programming work and keeps the guidance conservative."
-        eyebrow="Today's plan"
-        subtitle="A simple view of what your recent Python work suggests and what kind of session should come next."
-        title={summary?.screenTitle ?? "Your Programming State"}
+        eyebrow="حالتك اليوم"
+        subtitle="إشارة واحدة واضحة، وخطوة تدريبية واحدة فقط."
+        title={summary?.screenTitle ?? "حالتك البرمجية اليوم"}
       />
-      <section className="flex flex-1 flex-col gap-4 px-4 pb-6">
+
+      <section className="flex flex-1 flex-col gap-4 px-4 pb-6 md:px-6">
         {loading ? (
           <StatePanel
-            description="We're loading your current programming state and today's recommended session mode."
-            eyebrow="Programming state"
-            title="Loading your next study step..."
+            description="نحضّر الإشارة الحالية والخطوة الأنسب لك."
+            eyebrow="حالتك البرمجية"
+            title="نجهّز قراءة اليوم..."
             tone="loading"
           />
         ) : null}
@@ -117,72 +134,74 @@ export default function TodayPage() {
         {error ? (
           <StatePanel
             description={error}
-            eyebrow="Programming state"
-            title="We couldn't load today's plan."
+            eyebrow="حالتك البرمجية"
+            title="تعذّر تحميل خطة اليوم."
             tone="error"
           />
         ) : null}
 
         {summary ? (
           <>
-            <div className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                What we see today
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
+            <div className="motion-rise stage-card rounded-[2rem] p-5 md:p-6">
+              <div className="flex flex-wrap gap-2">
                 <span
                   className={`inline-flex rounded-full border px-3 py-1.5 text-sm font-semibold ${getProgrammingStateTone(summary.programmingStateCode)}`}
                 >
-                  {summary.programmingStateLabel}
+                  {getProgrammingStateLabel(summary.programmingStateCode)}
                 </span>
                 <span
                   className={`inline-flex rounded-full border px-3 py-1.5 text-sm font-semibold ${getSessionModeTone(summary.sessionMode)}`}
                 >
-                  {summary.sessionModeLabel}
+                  {getSessionModeLabel(summary.sessionMode)}
                 </span>
+                <span className="support-chip">{getProgrammingStateSupport(summary)}</span>
               </div>
-              <div className="mt-5 rounded-2xl bg-[var(--surface-muted)] p-4">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                  Focus concept
-                </div>
-                <div className="mt-2 text-lg font-semibold text-[var(--text)]">
-                  {summary.focusConceptLabel}
-                </div>
+
+              <div className="mt-5 text-xs font-semibold text-[var(--text-muted)]">
+                ما الذي نفهمه الآن؟
               </div>
-              <div className="mt-4 text-sm leading-6 text-[var(--text-muted)]">
-                {summary.rationaleText}
+              <div className="mt-2 text-[1.35rem] font-semibold leading-9 text-[var(--text)] md:text-[1.55rem]">
+                نركّز الآن على {summary.focusConceptLabel}
+              </div>
+              <div className="mt-3 text-sm leading-7 text-[var(--text-muted)]">{rationale}</div>
+
+              <div className="mt-4">
+                <InlineReveal label="لماذا الآن؟" tone="accent">
+                  {summary.rationaleText}
+                </InlineReveal>
               </div>
             </div>
 
-            <div className="rounded-[1.75rem] border border-[var(--border)] bg-[linear-gradient(180deg,#ffffff_0%,#fbfcff_100%)] p-5 shadow-sm">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                Do this next
+            <div className="motion-rise-delay-1 stage-card rounded-[2rem] p-5 md:p-6">
+              <div className="text-xs font-semibold text-[var(--text-muted)]">
+                الخطوة التالية
               </div>
-              <div className="mt-3 text-lg font-semibold text-[var(--text)]">
-                {summary.primaryActionLabel}
-              </div>
-              <div className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
+              <div className="mt-2 text-lg font-semibold leading-8 text-[var(--text)]">
                 {summary.nextStepText}
               </div>
-              <div className="mt-4 rounded-2xl border border-[var(--border)] bg-white p-4 text-sm leading-6 text-[var(--text-muted)] shadow-sm">
-                {getProgrammingStateSupport(summary)}
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="inline-flex rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-sm font-medium text-[var(--text)] shadow-sm">
+                  {summary.hasActiveDailySession ? "عودة من نفس المكان" : "جلسة قصيرة"}
+                </span>
+                <span className="inline-flex rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-sm font-medium text-[var(--text)] shadow-sm">
+                  {summary.primaryActionLabel}
+                </span>
               </div>
             </div>
           </>
         ) : null}
       </section>
+
       <StickyActionBar
         disabled={loading || isStarting || !summary}
         label={
           isStarting
-            ? "Opening your session..."
-            : summary?.primaryActionLabel ?? "Start today's session"
+            ? "نفتح تدريب اليوم..."
+            : summary?.primaryActionLabel ?? "ابدأ تدريب اليوم"
         }
         onClick={handlePrimaryAction}
         supportingText={
-          summary
-            ? getProgrammingStateSupport(summary)
-            : "Your next study step appears here as soon as your programming state loads."
+          summary ? getProgrammingStateSupport(summary) : "ستظهر هنا أفضل خطوة تالية."
         }
       />
     </StudentShell>

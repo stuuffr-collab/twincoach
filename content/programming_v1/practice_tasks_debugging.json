@@ -4,13 +4,13 @@
     "conceptId": "py_c06_basic_debugging",
     "taskType": "bug_spotting",
     "modeTags": ["debugging_drill", "recovery_mode"],
-    "prompt": "Which fix is most useful first?",
+    "prompt": "أي إصلاح هو الأنسب أولًا؟",
     "codeSnippet": "name = \"Ada\"\nif name == \"Ada\"\n    print(\"match\")",
     "choices": [
-      { "choiceId": "c1", "label": "Add `:` after the `if` condition" },
-      { "choiceId": "c2", "label": "Rename `name` to `Ada`" },
-      { "choiceId": "c3", "label": "Delete the `print` line" },
-      { "choiceId": "c4", "label": "Replace `if` with `for`" }
+      { "choiceId": "c1", "label": "أضف `:` بعد شرط `if`" },
+      { "choiceId": "c2", "label": "غيّر `name` إلى `Ada`" },
+      { "choiceId": "c3", "label": "احذف سطر `print`" },
+      { "choiceId": "c4", "label": "استبدل `if` بـ `for`" }
     ],
     "answerFormat": "single_choice",
     "correctAnswer": "c1",
@@ -26,13 +26,13 @@
     "conceptId": "py_c06_basic_debugging",
     "taskType": "concept_choice",
     "modeTags": ["debugging_drill", "steady_practice"],
-    "prompt": "A function returns the wrong number. What is the best next debugging step?",
+    "prompt": "دالة تعيد رقمًا خاطئًا. ما أفضل خطوة إصلاح تالية؟",
     "codeSnippet": null,
     "choices": [
-      { "choiceId": "c1", "label": "Trace the variable values line by line" },
-      { "choiceId": "c2", "label": "Rewrite the whole program immediately" },
-      { "choiceId": "c3", "label": "Guess a new answer and move on" },
-      { "choiceId": "c4", "label": "Delete the return line" }
+      { "choiceId": "c1", "label": "تتبّع قيم المتغيرات سطرًا بعد سطر" },
+      { "choiceId": "c2", "label": "أعد كتابة البرنامج كله فورًا" },
+      { "choiceId": "c3", "label": "خمّن إجابة جديدة ثم تابع" },
+      { "choiceId": "c4", "label": "احذف سطر `return`" }
     ],
     "answerFormat": "single_choice",
     "correctAnswer": "c1",
@@ -48,12 +48,12 @@
     "conceptId": "py_c06_basic_debugging",
     "taskType": "output_prediction",
     "modeTags": ["debugging_drill", "steady_practice"],
-    "prompt": "After fixing the bug by changing `=` to `==`, what will the code print?",
+    "prompt": "بعد إصلاح الخطأ بتغيير `=` إلى `==`، ماذا سيطبع الكود؟",
     "codeSnippet": "name = \"Ada\"\nif name == \"Ada\":\n    print(\"match\")",
     "choices": [
       { "choiceId": "c1", "label": "match" },
       { "choiceId": "c2", "label": "Ada" },
-      { "choiceId": "c3", "label": "Nothing" },
+      { "choiceId": "c3", "label": "لا شيء" },
       { "choiceId": "c4", "label": "SyntaxError" }
     ],
     "answerFormat": "single_choice",
@@ -70,7 +70,7 @@
     "conceptId": "py_c06_basic_debugging",
     "taskType": "trace_reasoning",
     "modeTags": ["debugging_drill", "concept_repair"],
-    "prompt": "A learner says this loop runs 4 times. What is the correct count?",
+    "prompt": "طالب قال إن هذه الحلقة تعمل 4 مرات. ما العدد الصحيح؟",
     "codeSnippet": "for n in range(3):\n    print(n)",
     "choices": [
       { "choiceId": "c1", "label": "1" },

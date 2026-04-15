@@ -1,4 +1,10 @@
 import { getAdminKey } from "@/src/lib/admin-access";
+import {
+  persistOnboardingProfile,
+  persistProgrammingState,
+  persistRecentMode,
+  persistSessionSummary,
+} from "@/src/lib/learner-profile-lite";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ?? "";
 const LEARNER_ID_STORAGE_KEY = "twincoach.learnerId";
@@ -165,7 +171,7 @@ export type OnboardingResponse = {
 };
 
 export type ProgrammingState = {
-  screenTitle: "Your Programming State";
+  screenTitle: string;
   programmingStateCode: ProgrammingStateCode;
   programmingStateLabel: string;
   focusConceptId: string;
@@ -175,7 +181,7 @@ export type ProgrammingState = {
   rationaleCode: RationaleCode;
   rationaleText: string;
   nextStepText: string;
-  primaryActionLabel: "Start today's session" | "Resume today's session";
+  primaryActionLabel: string;
   hasActiveDailySession: boolean;
   activeSessionId: string | null;
 };
@@ -352,6 +358,7 @@ export async function submitOnboarding(
 
   const payload = (await response.json()) as OnboardingResponse;
   setLearnerId(payload.learnerId);
+  persistOnboardingProfile(input);
 
   return payload;
 }
@@ -401,7 +408,10 @@ export async function createOrResumeDailySession(): Promise<DailySessionPayload>
     );
   }
 
-  return (await response.json()) as DailySessionPayload;
+  const payload = (await response.json()) as DailySessionPayload;
+  persistRecentMode(payload.sessionMode);
+
+  return payload;
 }
 
 export async function submitAnswer(input: {
@@ -442,7 +452,10 @@ export async function fetchTodaySummary(): Promise<ProgrammingState> {
     throw await createApiError(response, "Failed to load programming state");
   }
 
-  return (await response.json()) as ProgrammingState;
+  const payload = (await response.json()) as ProgrammingState;
+  persistProgrammingState(payload);
+
+  return payload;
 }
 
 export async function fetchSessionSummary(
@@ -458,7 +471,10 @@ export async function fetchSessionSummary(
     throw await createApiError(response, "Failed to load session summary");
   }
 
-  return (await response.json()) as SessionSummary;
+  const payload = (await response.json()) as SessionSummary;
+  persistSessionSummary(payload);
+
+  return payload;
 }
 
 export async function recordTelemetryEvent(

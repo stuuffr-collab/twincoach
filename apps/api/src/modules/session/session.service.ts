@@ -368,7 +368,7 @@ export class SessionService {
         ...baseTaskPayload,
         helpAvailable: Boolean(helpTemplate),
         helpKind: helpTemplate?.helpKind ?? null,
-        helpLabel: helpTemplate ? "Need a hint?" : null,
+        helpLabel: helpTemplate ? "يمكن إظهار خطوة مساعدة" : null,
       },
     };
   }
@@ -606,7 +606,7 @@ export class SessionService {
         ? {
             helpOffer: {
               helpKind: helpTemplate.helpKind,
-              label: "Show hint",
+              label: "اكشف المساعدة",
               text: helpTemplate.templateText,
             },
           }
@@ -672,12 +672,12 @@ export class SessionService {
       },
       nextBestAction: {
         route: "/today",
-        label: "Back to Your Programming State",
+        label: "العودة إلى حالتك البرمجية اليوم",
         text:
           (await this.curriculumService.getSummaryTemplateText({
             summaryField: "nextBestAction",
             triggerCode: "return_to_programming_state",
-          })) || "Go back to Your Programming State for the next recommended step.",
+          })) || "ارجع إلى حالتك البرمجية اليوم لتظهر لك الخطوة الموصى بها التالية.",
       },
     };
 
@@ -722,67 +722,67 @@ export class SessionService {
         (await this.curriculumService.getSummaryTemplateText({
           summaryField: "whatImproved",
           triggerCode: code,
-        })) || "You answered more reliably on the focus concept in this session."
+        })) || "أصبحت إجاباتك أكثر ثباتًا في فكرة التركيز خلال هذه الجلسة."
       );
     }
 
     if (code === "debugging_recovery") {
-      return "You recovered after a mistake and kept moving through the session.";
+      return "بعد التعثر، تمكنت من استعادة المسار ومواصلة الجلسة بهدوء.";
     }
 
-    return "You completed the session and kept your work moving forward.";
+    return "أكملت الجلسة وحافظت على تقدّمك خطوة بعد خطوة.";
   }
 
   private getWhatImprovedLabel(code: string) {
     if (code === "concept_strengthened") {
-      return "Concept strengthened";
+      return "ما الذي تحسّن";
     }
 
     if (code === "debugging_recovery") {
-      return "Debugging recovery";
+      return "ما الذي تحسّن";
     }
 
-    return "Steady completion";
+    return "ما الذي تحسّن";
   }
 
   private getWhatNeedsSupportLabel(code: string) {
     if (code === "syntax_still_fragile") {
-      return "Syntax still needs support";
+      return "ما الذي ما زال يحتاج دعمًا";
     }
 
     if (code === "debugging_still_needs_structure") {
-      return "Debugging still needs structure";
+      return "ما الذي ما زال يحتاج دعمًا";
     }
 
-    return "Concept still needs support";
+    return "ما الذي ما زال يحتاج دعمًا";
   }
 
   private getWhatNeedsSupportText(code: string) {
     if (code === "syntax_still_fragile") {
-      return "Syntax-form mistakes still need a steadier pass in the next session.";
+      return "صياغة بايثون ما زالت تحتاج مرورًا أوضح في الجلسة التالية.";
     }
 
     if (code === "debugging_still_needs_structure") {
-      return "Debugging still needs a more structured next step.";
+      return "إصلاح الأخطاء ما زال يحتاج خطوة أكثر تنظيمًا في المرة التالية.";
     }
 
-    return "This concept still needs one steadier pass in the next session.";
+    return "هذه الفكرة ما زالت تحتاج مرورًا أوضح في الجلسة التالية.";
   }
 
   private getStudyPatternLabel(code: string) {
     if (code === "recovered_after_mistake") {
-      return "Recovered after mistake";
+      return "ما الذي لاحظناه في طريقة تقدّمك";
     }
 
     if (code === "hesitated_but_completed") {
-      return "Completed after recovery";
+      return "ما الذي لاحظناه في طريقة تقدّمك";
     }
 
     if (code === "needed_hint_to_progress") {
-      return "Hint supported progress";
+      return "ما الذي لاحظناه في طريقة تقدّمك";
     }
 
-    return "Steady throughout";
+    return "ما الذي لاحظناه في طريقة تقدّمك";
   }
 
   private async getStudyPatternText(code: string) {
@@ -791,19 +791,19 @@ export class SessionService {
         (await this.curriculumService.getSummaryTemplateText({
           summaryField: "studyPatternObserved",
           triggerCode: code,
-        })) || "You kept going after a mistake and recovered within the same session."
+        })) || "واصلت العمل بعد التعثر واستعدت المسار داخل الجلسة نفسها."
       );
     }
 
     if (code === "hesitated_but_completed") {
-      return "You completed a lighter recovery session and kept your work moving.";
+      return "أكملت جلسة أخف وحافظت على حركة التقدّم دون انقطاع.";
     }
 
     if (code === "needed_hint_to_progress") {
-      return "A structured hint helped you move forward in this session.";
+      return "خطوة مساعدة منظّمة ساعدتك على متابعة التقدّم داخل هذه الجلسة.";
     }
 
-    return "You moved through this session with steady momentum.";
+    return "تحركت داخل هذه الجلسة بإيقاع ثابت وواضح.";
   }
 
   private evaluateAnswer(input: {
@@ -885,10 +885,10 @@ export class SessionService {
 
   private getSessionModeLabel(mode: SessionMode) {
     const labels: Record<SessionMode, string> = {
-      steady_practice: "Steady practice",
-      concept_repair: "Concept repair",
-      debugging_drill: "Debugging drill",
-      recovery_mode: "Recovery mode",
+      steady_practice: "تدريب ثابت",
+      concept_repair: "تقوية الفكرة",
+      debugging_drill: "تدريب على الإصلاح",
+      recovery_mode: "عودة هادئة",
     };
 
     return labels[mode];

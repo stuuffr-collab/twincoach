@@ -9,7 +9,7 @@ type ProgressBarProps = {
 
 const toneClasses = {
   diagnostic: {
-    container: "border-[var(--border)] bg-[linear-gradient(180deg,#ffffff_0%,#f9fbff_100%)]",
+    container: "border-[var(--border)] bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)]",
     badge: "bg-slate-100 text-slate-700",
     bar: "bg-[var(--primary)]",
   },
@@ -23,8 +23,8 @@ const toneClasses = {
 export function ProgressBar({
   currentIndex,
   totalItems,
-  label = "Progress",
-  badgeText = "Saved after each answer",
+  label = "التقدّم الحالي",
+  badgeText = "محفوظ أولًا بأول",
   supportingText,
   tone = "session",
 }: ProgressBarProps) {
@@ -33,15 +33,15 @@ export function ProgressBar({
   const classes = toneClasses[tone];
 
   return (
-    <div className="px-4">
-      <div className={`rounded-2xl border px-4 py-3 shadow-sm ${classes.container}`}>
+    <div className="px-4 md:px-6">
+      <div className={`motion-rise rounded-[1.65rem] border px-4 py-3 shadow-sm ${classes.container}`}>
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+            <div className="text-xs font-semibold text-[var(--text-muted)]">
               {label}
             </div>
             <div className="mt-1 text-sm font-medium text-[var(--text)]">
-              Question {currentIndex} of {totalItems}
+              <span dir="ltr">{currentIndex} / {totalItems}</span> خطوة
             </div>
           </div>
           <div className={`rounded-full px-2.5 py-1 text-xs font-medium ${classes.badge}`}>
@@ -49,15 +49,15 @@ export function ProgressBar({
           </div>
         </div>
 
-        <div className="h-2.5 rounded-full bg-[var(--border)]">
+        <div className="h-2.5 rounded-full bg-[var(--border)]" dir="ltr">
           <div
-            className={`h-2.5 rounded-full transition-all ${classes.bar}`}
+            className={`h-2.5 rounded-full transition-all duration-500 ease-out ${classes.bar}`}
             style={{ width: `${percentage}%` }}
           />
         </div>
 
         {supportingText ? (
-          <div className="mt-3 text-xs leading-5 text-[var(--text-muted)]">
+          <div className="mt-2 text-[0.8rem] leading-6 text-[var(--text-muted)]">
             {supportingText}
           </div>
         ) : null}

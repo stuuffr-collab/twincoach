@@ -4,13 +4,13 @@
     "conceptId": "py_c03_loops",
     "taskType": "output_prediction",
     "modeTags": ["steady_practice", "concept_repair", "recovery_mode"],
-    "prompt": "What does this code print?",
+    "prompt": "ماذا سيطبع هذا الكود؟",
     "codeSnippet": "for n in [1, 2]:\n    print(n)",
     "choices": [
-      { "choiceId": "c1", "label": "1 then 2" },
-      { "choiceId": "c2", "label": "2 only" },
-      { "choiceId": "c3", "label": "1 only" },
-      { "choiceId": "c4", "label": "12 on one line" }
+      { "choiceId": "c1", "label": "1 ثم 2" },
+      { "choiceId": "c2", "label": "2 فقط" },
+      { "choiceId": "c3", "label": "1 فقط" },
+      { "choiceId": "c4", "label": "12 في سطر واحد" }
     ],
     "answerFormat": "single_choice",
     "correctAnswer": "c1",
@@ -26,7 +26,7 @@
     "conceptId": "py_c03_loops",
     "taskType": "trace_reasoning",
     "modeTags": ["steady_practice", "concept_repair", "debugging_drill"],
-    "prompt": "What is the final value of `count`?",
+    "prompt": "ما القيمة النهائية لـ `count`؟",
     "codeSnippet": "count = 0\nfor n in [3, 4]:\n    count = count + 1",
     "choices": [
       { "choiceId": "c1", "label": "1" },
@@ -48,13 +48,13 @@
     "conceptId": "py_c03_loops",
     "taskType": "bug_spotting",
     "modeTags": ["debugging_drill", "concept_repair"],
-    "prompt": "Which change makes the loop count from 0 to 2 correctly?",
+    "prompt": "أي تعديل يجعل الحلقة تعد من 0 إلى 2 بشكل صحيح؟",
     "codeSnippet": "for n in range(3)\n    print(n)",
     "choices": [
-      { "choiceId": "c1", "label": "Add `:` after `range(3)`" },
-      { "choiceId": "c2", "label": "Remove `print(n)`" },
-      { "choiceId": "c3", "label": "Change `3` to `2`" },
-      { "choiceId": "c4", "label": "Move `for` below `print`" }
+      { "choiceId": "c1", "label": "أضف `:` بعد `range(3)`" },
+      { "choiceId": "c2", "label": "احذف `print(n)`" },
+      { "choiceId": "c3", "label": "غيّر `3` إلى `2`" },
+      { "choiceId": "c4", "label": "انقل `for` أسفل `print`" }
     ],
     "answerFormat": "single_choice",
     "correctAnswer": "c1",
@@ -70,7 +70,7 @@
     "conceptId": "py_c03_loops",
     "taskType": "code_completion",
     "modeTags": ["steady_practice", "concept_repair"],
-    "prompt": "Fill in the number so the loop runs 4 times.",
+    "prompt": "اكتب الرقم حتى تعمل الحلقة 4 مرات.",
     "codeSnippet": "for n in range(____):\n    print(n)",
     "choices": [],
     "answerFormat": "short_text",

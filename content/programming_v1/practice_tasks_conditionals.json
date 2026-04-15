@@ -4,13 +4,13 @@
     "conceptId": "py_c02_conditionals",
     "taskType": "output_prediction",
     "modeTags": ["steady_practice", "concept_repair", "recovery_mode"],
-    "prompt": "What does this code print?",
+    "prompt": "ماذا سيطبع هذا الكود؟",
     "codeSnippet": "score = 82\nif score >= 70:\n    print(\"pass\")\nelse:\n    print(\"retry\")",
     "choices": [
       { "choiceId": "c1", "label": "pass" },
       { "choiceId": "c2", "label": "retry" },
       { "choiceId": "c3", "label": "82" },
-      { "choiceId": "c4", "label": "Nothing" }
+      { "choiceId": "c4", "label": "لا شيء" }
     ],
     "answerFormat": "single_choice",
     "correctAnswer": "c1",
@@ -26,7 +26,7 @@
     "conceptId": "py_c02_conditionals",
     "taskType": "concept_choice",
     "modeTags": ["steady_practice", "concept_repair"],
-    "prompt": "Which condition is true when `temp` is 0?",
+    "prompt": "أي شرط يكون صحيحًا عندما تكون قيمة `temp` هي 0؟",
     "codeSnippet": null,
     "choices": [
       { "choiceId": "c1", "label": "temp > 0" },
@@ -48,13 +48,13 @@
     "conceptId": "py_c02_conditionals",
     "taskType": "bug_spotting",
     "modeTags": ["debugging_drill", "concept_repair"],
-    "prompt": "Which change makes the code print `adult` at age 18?",
+    "prompt": "أي تعديل يجعل الكود يطبع `adult` عندما تكون قيمة `age` هي 18؟",
     "codeSnippet": "age = 18\nif age > 18:\n    print(\"adult\")",
     "choices": [
-      { "choiceId": "c1", "label": "Change `>` to `>=`" },
-      { "choiceId": "c2", "label": "Change `18` to `17`" },
-      { "choiceId": "c3", "label": "Remove `if`" },
-      { "choiceId": "c4", "label": "Move `print` above the `if`" }
+      { "choiceId": "c1", "label": "غيّر `>` إلى `>=`" },
+      { "choiceId": "c2", "label": "غيّر `18` إلى `17`" },
+      { "choiceId": "c3", "label": "احذف `if`" },
+      { "choiceId": "c4", "label": "انقل `print` إلى أعلى `if`" }
     ],
     "answerFormat": "single_choice",
     "correctAnswer": "c1",
@@ -70,7 +70,7 @@
     "conceptId": "py_c02_conditionals",
     "taskType": "trace_reasoning",
     "modeTags": ["steady_practice", "concept_repair"],
-    "prompt": "Which value of `x` makes the code print `high`?",
+    "prompt": "أي قيمة لـ `x` تجعل الكود يطبع `high`؟",
     "codeSnippet": "if x > 10:\n    print(\"high\")",
     "choices": [
       { "choiceId": "c1", "label": "8" },

@@ -4,7 +4,7 @@
     "conceptId": "py_c05_tracing_state",
     "taskType": "trace_reasoning",
     "modeTags": ["steady_practice", "concept_repair", "recovery_mode"],
-    "prompt": "What is the value of `score` after line 3?",
+    "prompt": "ما قيمة `score` بعد السطر 3؟",
     "codeSnippet": "score = 1\nscore = score + 4\nscore = score * 2",
     "choices": [
       { "choiceId": "c1", "label": "2" },
@@ -26,7 +26,7 @@
     "conceptId": "py_c05_tracing_state",
     "taskType": "output_prediction",
     "modeTags": ["steady_practice", "concept_repair"],
-    "prompt": "What does this code print?",
+    "prompt": "ماذا سيطبع هذا الكود؟",
     "codeSnippet": "a = 2\nb = a + 1\na = b + 2\nprint(a)",
     "choices": [
       { "choiceId": "c1", "label": "2" },
@@ -48,7 +48,7 @@
     "conceptId": "py_c05_tracing_state",
     "taskType": "concept_choice",
     "modeTags": ["steady_practice", "concept_repair"],
-    "prompt": "Which value does `count` have right before `print(count)` runs?",
+    "prompt": "ما قيمة `count` مباشرة قبل تنفيذ `print(count)`؟",
     "codeSnippet": "count = 1\ncount = count + 2\nprint(count)",
     "choices": [
       { "choiceId": "c1", "label": "1" },
@@ -70,13 +70,13 @@
     "conceptId": "py_c05_tracing_state",
     "taskType": "bug_spotting",
     "modeTags": ["debugging_drill", "concept_repair"],
-    "prompt": "A learner says this prints 7. Which step did they most likely miss?",
+    "prompt": "طالب قال إن هذا الكود سيطبع 7. ما الخطوة التي غالبًا فاتته؟",
     "codeSnippet": "value = 5\nvalue = value - 2\nprint(value)",
     "choices": [
-      { "choiceId": "c1", "label": "They forgot the subtraction changes `value` to 3" },
-      { "choiceId": "c2", "label": "They forgot to define `print`" },
-      { "choiceId": "c3", "label": "They needed a loop" },
-      { "choiceId": "c4", "label": "There is no issue" }
+      { "choiceId": "c1", "label": "فاتَه أن الطرح يغيّر قيمة `value` إلى 3" },
+      { "choiceId": "c2", "label": "فاتَه تعريف `print`" },
+      { "choiceId": "c3", "label": "كان يحتاج إلى حلقة تكرار" },
+      { "choiceId": "c4", "label": "لا توجد مشكلة أصلًا" }
     ],
     "answerFormat": "single_choice",
     "correctAnswer": "c1",
