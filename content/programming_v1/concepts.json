@@ -2,43 +2,43 @@
   {
     "conceptId": "py_c01_variables",
     "sequenceOrder": 1,
-    "learnerLabel": "Variables and expressions",
-    "description": "Store values, update them, and evaluate simple expressions.",
+    "learnerLabel": "المتغيرات والتعابير",
+    "description": "حفظ القيم وتحديثها وقراءة التعابير البسيطة.",
     "isActive": true
   },
   {
     "conceptId": "py_c02_conditionals",
     "sequenceOrder": 2,
-    "learnerLabel": "Conditionals",
-    "description": "Read if and else logic and predict which branch runs.",
+    "learnerLabel": "الجمل الشرطية",
+    "description": "فهم if و else وتوقّع أي فرع سيعمل.",
     "isActive": true
   },
   {
     "conceptId": "py_c03_loops",
     "sequenceOrder": 3,
-    "learnerLabel": "Loops",
-    "description": "Follow repeated steps and reason about loop updates.",
+    "learnerLabel": "الحلقات التكرارية",
+    "description": "تتبّع الخطوات المتكررة وفهم تحديث القيم داخل الحلقة.",
     "isActive": true
   },
   {
     "conceptId": "py_c04_functions",
     "sequenceOrder": 4,
-    "learnerLabel": "Functions",
-    "description": "Understand function calls, parameters, and return values.",
+    "learnerLabel": "الدوال",
+    "description": "فهم الاستدعاء والمعاملات والقيم المعادة.",
     "isActive": true
   },
   {
     "conceptId": "py_c05_tracing_state",
     "sequenceOrder": 5,
-    "learnerLabel": "Tracing state",
-    "description": "Track how variable values change across several lines of code.",
+    "learnerLabel": "تتبّع الحالة",
+    "description": "متابعة تغيّر القيم عبر عدة أسطر من الكود.",
     "isActive": true
   },
   {
     "conceptId": "py_c06_basic_debugging",
     "sequenceOrder": 6,
-    "learnerLabel": "Basic debugging",
-    "description": "Spot common beginner bugs and choose the next useful fix.",
+    "learnerLabel": "إصلاح الأخطاء الأساسية",
+    "description": "اكتشاف الأخطاء الشائعة واختيار أول تعديل مفيد.",
     "isActive": true
   }
 ]

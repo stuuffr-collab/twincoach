@@ -21,23 +21,23 @@ const priorProgrammingExposureOptions: Array<{
 }> = [
   {
     value: "none",
-    label: "None yet",
-    helper: "You're just getting started with Python or programming.",
+    label: "لم أدرس البرمجة من قبل",
+    helper: "سنبدأ بهدوء من الأساس ونختار لك مدخلًا واضحًا.",
   },
   {
     value: "school_basics",
-    label: "School basics",
-    helper: "You've seen simple exercises or class examples before.",
+    label: "أساسيات دراسية بسيطة",
+    helper: "سنفترض أنك رأيت أمثلة وتمارين قصيرة من قبل.",
   },
   {
     value: "self_taught_basics",
-    label: "Self-taught basics",
-    helper: "You've tried learning on your own through videos or tutorials.",
+    label: "أساسيات تعلّمتها ذاتيًا",
+    helper: "سنحافظ على بداية مرنة تناسب من جرّب التعلم بمفرده.",
   },
   {
     value: "completed_intro_course",
-    label: "Completed intro course",
-    helper: "You've already finished one intro-style programming course.",
+    label: "أنهيت مقررًا تمهيديًا",
+    helper: "سنبدأ من مستوى أكثر ثباتًا دون افتراض تقدّم زائد.",
   },
 ];
 
@@ -48,18 +48,18 @@ const comfortLevelOptions: Array<{
 }> = [
   {
     value: "very_low",
-    label: "Very low",
-    helper: "Python still feels unfamiliar most of the time.",
+    label: "منخفض جدًا",
+    helper: "سنخفف البداية ونجعل أول خطوة واضحة وغير ضاغطة.",
   },
   {
     value: "low",
-    label: "Low",
-    helper: "You can follow some basics, but you still get stuck often.",
+    label: "منخفض",
+    helper: "سنختار لك وتيرة هادئة مع دعم أوضح عند التعثر.",
   },
   {
     value: "medium",
-    label: "Medium",
-    helper: "You can work through short tasks, but you want steadier progress.",
+    label: "متوسط",
+    helper: "سنثبت التقدّم ونوجّه التدريب نحو الفكرة الأهم الآن.",
   },
 ];
 
@@ -70,23 +70,23 @@ const biggestDifficultyOptions: Array<{
 }> = [
   {
     value: "reading_code",
-    label: "Reading code",
-    helper: "Understanding what code is doing line by line is the hardest part.",
+    label: "قراءة الكود",
+    helper: "سنستخدم تدريبًا يوضّح ما يحدث سطرًا بعد سطر.",
   },
   {
     value: "writing_syntax",
-    label: "Writing syntax",
-    helper: "You often know the idea, but typing the Python form is hard.",
+    label: "كتابة صياغة بايثون",
+    helper: "سنخفف الحمل على الصياغة ونبنيها خطوة خطوة.",
   },
   {
     value: "tracing_logic",
-    label: "Tracing logic",
-    helper: "You lose track of values, conditions, or loop flow while solving.",
+    label: "تتبّع المنطق والقيم",
+    helper: "سنركّز على فهم تغيّر القيم ومسار التنفيذ بوضوح أكبر.",
   },
   {
     value: "debugging_errors",
-    label: "Debugging errors",
-    helper: "Fixing mistakes and knowing what to try next feels hardest.",
+    label: "إصلاح الأخطاء",
+    helper: "سنختار نمط دعم يساعدك تعرف الخطوة التالية عند الخطأ.",
   },
 ];
 
@@ -97,23 +97,23 @@ const preferredHelpStyleOptions: Array<{
 }> = [
   {
     value: "step_breakdown",
-    label: "Step breakdown",
-    helper: "You like a problem split into smaller steps.",
+    label: "تفكيك الخطوات",
+    helper: "تفضّل أن نجزّئ الفكرة إلى خطوات صغيرة وواضحة.",
   },
   {
     value: "worked_example",
-    label: "Worked example",
-    helper: "You learn best by seeing one clear example first.",
+    label: "مثال محلول",
+    helper: "تفهم أسرع عندما ترى مثالًا واضحًا قبل المحاولة.",
   },
   {
     value: "debugging_hint",
-    label: "Debugging hint",
-    helper: "You prefer a nudge toward the next fix instead of the full answer.",
+    label: "تلميح للإصلاح",
+    helper: "تفضّل تلميحًا قصيرًا يقودك إلى التعديل التالي.",
   },
   {
     value: "concept_explanation",
-    label: "Concept explanation",
-    helper: "You want the main idea explained before trying again.",
+    label: "شرح الفكرة",
+    helper: "ترتاح عندما نفك الفكرة أولًا قبل إعادة المحاولة.",
   },
 ];
 
@@ -168,7 +168,7 @@ export default function OnboardingPage() {
 
       router.replace(payload.nextRoute);
     } catch {
-      setError("We couldn't save your programming setup yet. Try again.");
+      setError("تعذّر حفظ بداية المسار الآن. جرّب مرة أخرى.");
     } finally {
       setIsSubmitting(false);
     }
@@ -177,10 +177,10 @@ export default function OnboardingPage() {
   return (
     <StudentShell>
       <PageHeader
-        detail="Four short choices help TwinCoach shape your first Python diagnostic and your first guided study plan."
-        eyebrow="Programming setup"
-        subtitle="We'll use this to start at the right pace and choose the most helpful style of support."
-        title="Start your programming study state"
+        detail="هذه ليست استمارة طويلة ولا تصنيفًا لك. أربع اختيارات قصيرة فقط تساعد TwinCoach يفهم من أين يبدأ معك وكيف يوجّه تدريبك الأول في بايثون."
+        eyebrow="بداية المسار"
+        subtitle="نلتقط أول إشارة عن طريقتك في التعلّم حتى نختار سرعة البداية وشكل الدعم الأنسب لك."
+        title="نضبط نقطة انطلاقك في البرمجة"
       />
       <section className="flex flex-1 flex-col gap-4 px-4 pb-6">
         <div className="rounded-[2rem] border border-blue-100 bg-[linear-gradient(180deg,#ffffff_0%,#f4f8ff_100%)] p-5 shadow-sm">
@@ -189,42 +189,42 @@ export default function OnboardingPage() {
               Python CS1
             </span>
             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-              Under 1 minute
+              أقل من دقيقة
             </span>
             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-              4 short choices
+              4 اختيارات
             </span>
           </div>
-          <div className="mt-4 text-lg font-semibold text-[var(--text)]">
-            This gives TwinCoach the first reliable picture of how to guide your Python practice.
+          <div className="mt-4 text-lg font-semibold leading-8 text-[var(--text)]">
+            من هنا يبدأ مسار تدريبك الشخصي. نستخدم هذه البداية لنرسم أول صورة موثوقة
+            عن الطريقة الأنسب لتوجيه ممارستك في بايثون.
           </div>
-          <div className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
-            We are not trying to label you. We are only setting a calm starting point for
-            your diagnostic, your first session mode, and the kind of help that is most
-            useful when you get stuck.
+          <div className="mt-3 text-sm leading-7 text-[var(--text-muted)]">
+            لسنا نحاول أن نضع عليك حكمًا. نحن فقط نضبط بداية هادئة لخطوة التهيئة
+            الأولى، ولنمط التدريب الأول، ولنمط الدعم الذي يفيدك أكثر عندما تتعثر.
           </div>
         </div>
 
         <div className="rounded-[2rem] border border-[var(--border)] bg-[linear-gradient(180deg,#ffffff_0%,#fbfcff_100%)] p-5 shadow-sm">
           <div className="mb-5">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-              Your setup
+            <div className="text-xs font-semibold text-[var(--text-muted)]">
+              ما الذي نحتاج معرفته أولًا؟
             </div>
-            <div className="mt-2 text-base font-semibold text-[var(--text)]">
-              Choose the four details that shape your first study step.
+            <div className="mt-2 text-base font-semibold leading-7 text-[var(--text)]">
+              اختر أربع إشارات تساعدنا نوجّه أول خطوة تدريبية لك بشكل أدق.
             </div>
           </div>
 
           <div className="flex flex-col gap-5">
             <label className="flex flex-col gap-2 rounded-[1.5rem] border border-[var(--border)] bg-white p-4 shadow-sm">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                Prior exposure
+              <span className="text-xs font-semibold text-[var(--text-muted)]">
+                خبرتك السابقة
               </span>
-              <span className="text-base font-semibold text-[var(--text)]">
-                How much programming have you done before?
+              <span className="text-base font-semibold leading-7 text-[var(--text)]">
+                ما مقدار تعرّضك للبرمجة حتى الآن؟
               </span>
-              <span className="text-sm leading-6 text-[var(--text-muted)]">
-                Pick the closest match. This helps us set the starting pace.
+              <span className="text-sm leading-7 text-[var(--text-muted)]">
+                اختر الأقرب لحالتك. هذا يحدد سرعة البداية المناسبة.
               </span>
               <select
                 className="min-h-14 rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-base shadow-sm"
@@ -235,7 +235,7 @@ export default function OnboardingPage() {
                 }
                 value={priorProgrammingExposure}
               >
-                <option value="">Select your prior exposure</option>
+                <option value="">اختر مستوى خبرتك السابقة</option>
                 {priorProgrammingExposureOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -243,7 +243,7 @@ export default function OnboardingPage() {
                 ))}
               </select>
               {priorProgrammingExposure ? (
-                <span className="text-sm text-[var(--text-muted)]">
+                <span className="text-sm leading-7 text-[var(--text-muted)]">
                   {
                     priorProgrammingExposureOptions.find(
                       (option) => option.value === priorProgrammingExposure,
@@ -254,14 +254,14 @@ export default function OnboardingPage() {
             </label>
 
             <label className="flex flex-col gap-2 rounded-[1.5rem] border border-[var(--border)] bg-white p-4 shadow-sm">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                Comfort level
+              <span className="text-xs font-semibold text-[var(--text-muted)]">
+                مستوى الارتياح الحالي
               </span>
-              <span className="text-base font-semibold text-[var(--text)]">
-                How comfortable do you feel with Python right now?
+              <span className="text-base font-semibold leading-7 text-[var(--text)]">
+                كيف تشعر الآن مع بايثون؟
               </span>
-              <span className="text-sm leading-6 text-[var(--text-muted)]">
-                This helps us keep the first diagnostic fair and focused.
+              <span className="text-sm leading-7 text-[var(--text-muted)]">
+                هذا يساعدنا نجعل بداية التهيئة عادلة وواضحة.
               </span>
               <select
                 className="min-h-14 rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-base shadow-sm"
@@ -272,7 +272,7 @@ export default function OnboardingPage() {
                 }
                 value={currentComfortLevel}
               >
-                <option value="">Select your comfort level</option>
+                <option value="">اختر مستوى ارتياحك الحالي</option>
                 {comfortLevelOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -280,7 +280,7 @@ export default function OnboardingPage() {
                 ))}
               </select>
               {currentComfortLevel ? (
-                <span className="text-sm text-[var(--text-muted)]">
+                <span className="text-sm leading-7 text-[var(--text-muted)]">
                   {
                     comfortLevelOptions.find(
                       (option) => option.value === currentComfortLevel,
@@ -291,14 +291,14 @@ export default function OnboardingPage() {
             </label>
 
             <label className="flex flex-col gap-2 rounded-[1.5rem] border border-[var(--border)] bg-white p-4 shadow-sm">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                Biggest difficulty
+              <span className="text-xs font-semibold text-[var(--text-muted)]">
+                موضع التعثر الأكبر
               </span>
-              <span className="text-base font-semibold text-[var(--text)]">
-                What feels hardest when you study programming?
+              <span className="text-base font-semibold leading-7 text-[var(--text)]">
+                ما الذي يبدو أصعب عليك عند دراسة البرمجة؟
               </span>
-              <span className="text-sm leading-6 text-[var(--text-muted)]">
-                This gives TwinCoach an early clue about where support should start.
+              <span className="text-sm leading-7 text-[var(--text-muted)]">
+                من هنا نعرف أين يجب أن يبدأ الدعم أولًا.
               </span>
               <select
                 className="min-h-14 rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-base shadow-sm"
@@ -309,7 +309,7 @@ export default function OnboardingPage() {
                 }
                 value={biggestDifficulty}
               >
-                <option value="">Select your biggest difficulty</option>
+                <option value="">اختر موضع التعثر الأكبر</option>
                 {biggestDifficultyOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -317,7 +317,7 @@ export default function OnboardingPage() {
                 ))}
               </select>
               {biggestDifficulty ? (
-                <span className="text-sm text-[var(--text-muted)]">
+                <span className="text-sm leading-7 text-[var(--text-muted)]">
                   {
                     biggestDifficultyOptions.find(
                       (option) => option.value === biggestDifficulty,
@@ -328,14 +328,14 @@ export default function OnboardingPage() {
             </label>
 
             <label className="flex flex-col gap-2 rounded-[1.5rem] border border-[var(--border)] bg-white p-4 shadow-sm">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                Help style
+              <span className="text-xs font-semibold text-[var(--text-muted)]">
+                شكل الدعم الأنسب لك
               </span>
-              <span className="text-base font-semibold text-[var(--text)]">
-                What kind of support usually helps you most?
+              <span className="text-base font-semibold leading-7 text-[var(--text)]">
+                عندما تتعثر، ما نوع المساعدة الذي يفيدك أكثر؟
               </span>
-              <span className="text-sm leading-6 text-[var(--text-muted)]">
-                We'll prefer this style when we offer guidance during practice.
+              <span className="text-sm leading-7 text-[var(--text-muted)]">
+                سنفضّل هذا الشكل عندما نقدّم لك دعمًا أثناء التدريب.
               </span>
               <select
                 className="min-h-14 rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-base shadow-sm"
@@ -344,7 +344,7 @@ export default function OnboardingPage() {
                 }
                 value={preferredHelpStyle}
               >
-                <option value="">Select your preferred help style</option>
+                <option value="">اختر شكل الدعم الذي تفضّله</option>
                 {preferredHelpStyleOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -352,7 +352,7 @@ export default function OnboardingPage() {
                 ))}
               </select>
               {preferredHelpStyle ? (
-                <span className="text-sm text-[var(--text-muted)]">
+                <span className="text-sm leading-7 text-[var(--text-muted)]">
                   {
                     preferredHelpStyleOptions.find(
                       (option) => option.value === preferredHelpStyle,
@@ -367,17 +367,17 @@ export default function OnboardingPage() {
         {error ? (
           <StatePanel
             description={error}
-            eyebrow="Setup issue"
-            title="We couldn't save your setup yet."
+            eyebrow="مشكلة مؤقتة"
+            title="تعذّر حفظ بداية المسار الآن."
             tone="error"
           />
         ) : null}
       </section>
       <StickyActionBar
         disabled={!isFormValid || isSubmitting}
-        label={isSubmitting ? "Saving your setup..." : "Save and start diagnostic"}
+        label={isSubmitting ? "نحفظ بداية المسار..." : "ابدأ تهيئة مساري"}
         onClick={handleSubmit}
-        supportingText="Next: a short Python diagnostic that helps TwinCoach build your first programming state."
+        supportingText="بعدها نأخذك إلى خطوة تهيئة قصيرة تبني أول صورة عن حالتك البرمجية."
       />
     </StudentShell>
   );

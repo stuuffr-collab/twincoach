@@ -7,11 +7,11 @@ import type {
 
 export function getProgrammingTaskTypeLabel(taskType: ProgrammingTaskType) {
   const labels: Record<ProgrammingTaskType, string> = {
-    output_prediction: "Output prediction",
-    trace_reasoning: "Trace reasoning",
-    bug_spotting: "Bug spotting",
-    code_completion: "Code completion",
-    concept_choice: "Concept choice",
+    output_prediction: "توقّع المخرجات",
+    trace_reasoning: "تتبّع التنفيذ",
+    bug_spotting: "التقاط الخطأ",
+    code_completion: "إكمال الكود",
+    concept_choice: "اختيار الفكرة",
   };
 
   return labels[taskType];
@@ -19,10 +19,10 @@ export function getProgrammingTaskTypeLabel(taskType: ProgrammingTaskType) {
 
 export function getHelpKindLabel(helpKind: HelpKind) {
   const labels: Record<HelpKind, string> = {
-    step_breakdown: "Step breakdown",
-    worked_example: "Worked example",
-    debugging_hint: "Debugging hint",
-    concept_explanation: "Concept explanation",
+    step_breakdown: "تفكيك الخطوات",
+    worked_example: "مثال محلول",
+    debugging_hint: "تلميح للإصلاح",
+    concept_explanation: "شرح الفكرة",
   };
 
   return labels[helpKind];
@@ -41,10 +41,10 @@ export function getSessionModeTone(mode: SessionMode) {
 
 export function getSessionModeLabel(mode: SessionMode) {
   const labels: Record<SessionMode, string> = {
-    steady_practice: "Steady practice",
-    concept_repair: "Concept repair",
-    debugging_drill: "Debugging drill",
-    recovery_mode: "Recovery mode",
+    steady_practice: "تدريب ثابت",
+    concept_repair: "تقوية الفكرة",
+    debugging_drill: "تدريب على الإصلاح",
+    recovery_mode: "عودة هادئة",
   };
 
   return labels[mode];
@@ -59,4 +59,15 @@ export function getProgrammingStateTone(code: ProgrammingStateCode) {
   };
 
   return tones[code];
+}
+
+export function getProgrammingStateLabel(code: ProgrammingStateCode) {
+  const labels: Record<ProgrammingStateCode, string> = {
+    building_foundations: "نبني الأساس",
+    debugging_focus: "نركّز على الإصلاح",
+    steady_progress: "تقدّم ثابت",
+    recovery_needed: "نحتاج عودة هادئة",
+  };
+
+  return labels[code];
 }

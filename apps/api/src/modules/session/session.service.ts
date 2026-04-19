@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import {
+  CoursePackSupportLevel,
   FeedbackType,
   HelpKind,
   LearnerProgressState,
@@ -17,6 +18,18 @@ import {
 } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { PrismaService } from "../../prisma/prisma.service";
+import { CoursePackContextService } from "../course-pack/course-pack-context.service";
+import { mapActiveCourseContextResponse } from "../course-pack/course-pack.mapper";
+import {
+  ActiveCourseContextPayload,
+  RecurringFocusDecisionPayload,
+  SessionRefreshHandoffPayload,
+} from "../course-pack/course-pack.types";
+import { COURSE_PACK_CONFIRMATION_INCLUDE } from "../course-pack/course-pack.query";
+import {
+  deriveCoursePackRefreshContext,
+  shouldContinueRefreshFollowThrough,
+} from "../course-pack/course-pack-refresh-handoff";
 import { CurriculumService } from "../curriculum/curriculum.service";
 import { LearnerProgressService } from "../learner/learner-progress.service";
 import { ProgrammingPlannerService } from "../learner/programming-planner.service";
@@ -30,6 +43,7 @@ export class SessionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly curriculumService: CurriculumService,
+    private readonly coursePackContextService: CoursePackContextService,
     private readonly learnerProgressService: LearnerProgressService,
     private readonly programmingPlannerService: ProgrammingPlannerService,
     private readonly telemetryService: TelemetryService,
@@ -222,6 +236,21 @@ export class SessionService {
 
     const sessionId = randomUUID();
     const checkpointToken = this.createCheckpointToken();
+    const refreshSequence = plan.decision.activeCourseContext?.followThrough
+      ? 2
+      : plan.decision.activeCourseContext?.refreshContext?.firstSessionPending
+        ? 1
+        : plan.decision.activeCourseContext?.resolution
+          ? 3
+          : null;
+    const recurringFocusDecision = plan.decision.activeCourseContext
+      ? await this.coursePackContextService.getRecurringFocusDecision({
+          learnerId,
+          currentFocusConceptId: plan.decision.focusConceptId,
+          currentFocusCompiledConceptId: plan.decision.focusCompiledConceptId,
+          currentFocusConceptLabel: plan.decision.focusConceptLabel,
+        })
+      : null;
 
     await this.prisma.$transaction(async (tx) => {
       await tx.session.create({
@@ -232,6 +261,18 @@ export class SessionService {
           sessionType: SessionType.daily_practice,
           sessionMode: plan.decision.sessionMode,
           focusConceptId: plan.decision.focusConceptId,
+          activeCoursePackId: plan.decision.activeCourseContext?.coursePackId ?? null,
+          focusCompiledConceptId:
+            plan.decision.activeCourseContext?.supportLevel ===
+            CoursePackSupportLevel.full_coach
+              ? plan.decision.focusCompiledConceptId
+              : null,
+          refreshSequence,
+          recurringDecisionType: recurringFocusDecision?.decisionType ?? null,
+          recurringSourceConceptId:
+            recurringFocusDecision?.sourceNormalizedConceptId ?? null,
+          recurringSourceConceptLabel:
+            recurringFocusDecision?.sourceLabel ?? null,
           rationaleCode: plan.decision.rationaleCode,
           status: SessionStatus.in_progress,
           currentIndex: 1,
@@ -280,7 +321,9 @@ export class SessionService {
         learnerId: input.learnerId,
       },
       include: {
+        activeCoursePack: true,
         focusConcept: true,
+        focusCompiledConcept: true,
         sessionItems: {
           orderBy: {
             sequenceOrder: "asc",
@@ -325,6 +368,51 @@ export class SessionService {
       answerFormat: currentTask.answerFormat,
       helperText: currentTask.helperText,
     };
+    const latestActiveCourseContext = session.activeCoursePackId
+      ? await this.coursePackContextService.getActiveContextPayload(
+          input.learnerId,
+        )
+      : null;
+    const activeCourseContext =
+      latestActiveCourseContext &&
+      latestActiveCourseContext.coursePackId === session.activeCoursePackId
+        ? latestActiveCourseContext
+        : this.buildSessionActiveCourseContext(session);
+    const refreshHandoff =
+      session.sessionType === SessionType.daily_practice
+        ? await this.buildSessionRefreshHandoff({
+            session: {
+              activeCoursePackId: session.activeCoursePackId,
+              focusCompiledConcept: session.focusCompiledConcept,
+              generatedAt: session.generatedAt,
+              refreshSequence: session.refreshSequence,
+            },
+          })
+        : null;
+    const recurringFocusDecision =
+      session.sessionType === SessionType.daily_practice
+        ? this.buildPersistedRecurringFocusDecision({
+            session: {
+              focusCompiledConceptId: session.focusCompiledConceptId,
+              recurringDecisionType: session.recurringDecisionType,
+              recurringSourceConceptId: session.recurringSourceConceptId,
+              recurringSourceConceptLabel: session.recurringSourceConceptLabel,
+              focusCompiledConcept: session.focusCompiledConcept,
+              focusConcept: session.focusConcept,
+            },
+          }) ??
+          (activeCourseContext
+            ? await this.coursePackContextService.getRecurringFocusDecision({
+                learnerId: input.learnerId,
+                currentFocusConceptId: session.focusConceptId,
+                currentFocusCompiledConceptId: session.focusCompiledConceptId,
+                currentFocusConceptLabel:
+                  session.focusCompiledConcept?.displayLabel ??
+                  session.focusConcept?.learnerLabel ??
+                  null,
+              })
+            : null)
+        : null;
 
     if (session.sessionType === SessionType.diagnostic) {
       return {
@@ -335,6 +423,7 @@ export class SessionService {
         totalItems: session.totalItems,
         checkpointToken: session.checkpointToken,
         currentTask: baseTaskPayload,
+        activeCourseContext,
       };
     }
 
@@ -360,15 +449,22 @@ export class SessionService {
         session.sessionMode ?? SessionMode.steady_practice,
       ),
       focusConceptId: session.focusConceptId,
-      focusConceptLabel: session.focusConcept?.learnerLabel ?? "",
+      focusConceptLabel:
+        session.focusCompiledConcept?.displayLabel ??
+        session.focusConcept?.learnerLabel ??
+        "",
+      focusCompiledConceptId: session.focusCompiledConceptId,
+      refreshHandoff,
+      recurringFocusDecision,
       currentIndex: session.currentIndex,
       totalItems: session.totalItems,
       checkpointToken: session.checkpointToken,
+      activeCourseContext,
       currentTask: {
         ...baseTaskPayload,
         helpAvailable: Boolean(helpTemplate),
         helpKind: helpTemplate?.helpKind ?? null,
-        helpLabel: helpTemplate ? "Need a hint?" : null,
+        helpLabel: helpTemplate ? "يمكن إظهار خطوة مساعدة" : null,
       },
     };
   }
@@ -490,6 +586,8 @@ export class SessionService {
       nextStatus === SessionStatus.completed
         ? session.checkpointToken
         : this.createCheckpointToken();
+    const completedAt =
+      nextStatus === SessionStatus.completed ? new Date() : null;
     const hadPreviousIncorrectInSession = Boolean(
       await this.prisma.attempt.findFirst({
         where: {
@@ -525,6 +623,8 @@ export class SessionService {
         isCorrect,
         primaryErrorTag,
         sessionMode: session.sessionMode,
+        activeCoursePackId: session.activeCoursePackId,
+        focusCompiledConceptId: session.focusCompiledConceptId,
       });
 
       await tx.session.update({
@@ -538,8 +638,7 @@ export class SessionService {
               ? session.currentIndex
               : session.currentIndex + 1,
           checkpointToken: nextCheckpointToken,
-          completedAt:
-            nextStatus === SessionStatus.completed ? new Date() : null,
+          completedAt,
         },
       });
 
@@ -554,6 +653,20 @@ export class SessionService {
         await this.learnerProgressService.markSessionCompleted(tx, {
           learnerId: input.learnerId,
           completedWithRecovery: hadPreviousIncorrectInSession || !isCorrect,
+        });
+
+        await this.updateRefreshFollowThroughAfterSession(tx, {
+          learnerId: input.learnerId,
+          sessionId: session.id,
+          activeCoursePackId: session.activeCoursePackId,
+          refreshSequence: session.refreshSequence,
+        });
+        await this.updateRecurringResolutionAfterSession(tx, {
+          learnerId: input.learnerId,
+          activeCoursePackId: session.activeCoursePackId,
+          recurringDecisionType: session.recurringDecisionType,
+          recurringSourceConceptId: session.recurringSourceConceptId,
+          completedAt: completedAt ?? new Date(),
         });
       }
     });
@@ -606,7 +719,7 @@ export class SessionService {
         ? {
             helpOffer: {
               helpKind: helpTemplate.helpKind,
-              label: "Show hint",
+              label: "اكشف المساعدة",
               text: helpTemplate.templateText,
             },
           }
@@ -623,7 +736,9 @@ export class SessionService {
         learnerId: input.learnerId,
       },
       include: {
+        activeCoursePack: true,
         focusConcept: true,
+        focusCompiledConcept: true,
         attempts: {
           orderBy: {
             createdAt: "asc",
@@ -646,11 +761,57 @@ export class SessionService {
       attempts: session.attempts,
     });
 
+    const latestActiveCourseContext = session.activeCoursePackId
+      ? await this.coursePackContextService.getActiveContextPayload(
+          input.learnerId,
+        )
+      : null;
+    const refreshHandoff = await this.buildSessionRefreshHandoff({
+      session: {
+        activeCoursePackId: session.activeCoursePackId,
+        focusCompiledConcept: session.focusCompiledConcept,
+        generatedAt: session.generatedAt,
+        refreshSequence: session.refreshSequence,
+      },
+    });
+    const recurringFocusDecision = session.activeCoursePackId
+      ? this.buildPersistedRecurringFocusDecision({
+          session: {
+            focusCompiledConceptId: session.focusCompiledConceptId,
+            recurringDecisionType: session.recurringDecisionType,
+            recurringSourceConceptId: session.recurringSourceConceptId,
+            recurringSourceConceptLabel: session.recurringSourceConceptLabel,
+            focusCompiledConcept: session.focusCompiledConcept,
+            focusConcept: session.focusConcept,
+          },
+        }) ??
+        (await this.coursePackContextService.getRecurringFocusDecision({
+          learnerId: input.learnerId,
+          currentFocusConceptId: session.focusConceptId,
+          currentFocusCompiledConceptId: session.focusCompiledConceptId,
+          currentFocusConceptLabel:
+            session.focusCompiledConcept?.displayLabel ??
+            session.focusConcept?.learnerLabel ??
+            null,
+        }))
+      : null;
+
     const payload = {
       sessionId: session.id,
       sessionMode: session.sessionMode,
       focusConceptId: session.focusConceptId,
-      focusConceptLabel: session.focusConcept?.learnerLabel ?? "",
+      focusConceptLabel:
+        session.focusCompiledConcept?.displayLabel ??
+        session.focusConcept?.learnerLabel ??
+        "",
+      focusCompiledConceptId: session.focusCompiledConceptId,
+      refreshHandoff,
+      recurringFocusDecision,
+      activeCourseContext:
+        latestActiveCourseContext &&
+        latestActiveCourseContext.coursePackId === session.activeCoursePackId
+          ? latestActiveCourseContext
+          : this.buildSessionActiveCourseContext(session),
       completedTaskCount: session.totalItems,
       correctCount: summaryCodes.correctCount,
       incorrectCount: summaryCodes.incorrectCount,
@@ -672,12 +833,12 @@ export class SessionService {
       },
       nextBestAction: {
         route: "/today",
-        label: "Back to Your Programming State",
+        label: "العودة إلى حالتك البرمجية اليوم",
         text:
           (await this.curriculumService.getSummaryTemplateText({
             summaryField: "nextBestAction",
             triggerCode: "return_to_programming_state",
-          })) || "Go back to Your Programming State for the next recommended step.",
+          })) || "ارجع إلى حالتك البرمجية اليوم لتظهر لك الخطوة الموصى بها التالية.",
       },
     };
 
@@ -722,67 +883,67 @@ export class SessionService {
         (await this.curriculumService.getSummaryTemplateText({
           summaryField: "whatImproved",
           triggerCode: code,
-        })) || "You answered more reliably on the focus concept in this session."
+        })) || "أصبحت إجاباتك أكثر ثباتًا في فكرة التركيز خلال هذه الجلسة."
       );
     }
 
     if (code === "debugging_recovery") {
-      return "You recovered after a mistake and kept moving through the session.";
+      return "بعد التعثر، تمكنت من استعادة المسار ومواصلة الجلسة بهدوء.";
     }
 
-    return "You completed the session and kept your work moving forward.";
+    return "أكملت الجلسة وحافظت على تقدّمك خطوة بعد خطوة.";
   }
 
   private getWhatImprovedLabel(code: string) {
     if (code === "concept_strengthened") {
-      return "Concept strengthened";
+      return "ما الذي تحسّن";
     }
 
     if (code === "debugging_recovery") {
-      return "Debugging recovery";
+      return "ما الذي تحسّن";
     }
 
-    return "Steady completion";
+    return "ما الذي تحسّن";
   }
 
   private getWhatNeedsSupportLabel(code: string) {
     if (code === "syntax_still_fragile") {
-      return "Syntax still needs support";
+      return "ما الذي ما زال يحتاج دعمًا";
     }
 
     if (code === "debugging_still_needs_structure") {
-      return "Debugging still needs structure";
+      return "ما الذي ما زال يحتاج دعمًا";
     }
 
-    return "Concept still needs support";
+    return "ما الذي ما زال يحتاج دعمًا";
   }
 
   private getWhatNeedsSupportText(code: string) {
     if (code === "syntax_still_fragile") {
-      return "Syntax-form mistakes still need a steadier pass in the next session.";
+      return "صياغة بايثون ما زالت تحتاج مرورًا أوضح في الجلسة التالية.";
     }
 
     if (code === "debugging_still_needs_structure") {
-      return "Debugging still needs a more structured next step.";
+      return "إصلاح الأخطاء ما زال يحتاج خطوة أكثر تنظيمًا في المرة التالية.";
     }
 
-    return "This concept still needs one steadier pass in the next session.";
+    return "هذه الفكرة ما زالت تحتاج مرورًا أوضح في الجلسة التالية.";
   }
 
   private getStudyPatternLabel(code: string) {
     if (code === "recovered_after_mistake") {
-      return "Recovered after mistake";
+      return "ما الذي لاحظناه في طريقة تقدّمك";
     }
 
     if (code === "hesitated_but_completed") {
-      return "Completed after recovery";
+      return "ما الذي لاحظناه في طريقة تقدّمك";
     }
 
     if (code === "needed_hint_to_progress") {
-      return "Hint supported progress";
+      return "ما الذي لاحظناه في طريقة تقدّمك";
     }
 
-    return "Steady throughout";
+    return "ما الذي لاحظناه في طريقة تقدّمك";
   }
 
   private async getStudyPatternText(code: string) {
@@ -791,19 +952,368 @@ export class SessionService {
         (await this.curriculumService.getSummaryTemplateText({
           summaryField: "studyPatternObserved",
           triggerCode: code,
-        })) || "You kept going after a mistake and recovered within the same session."
+        })) || "واصلت العمل بعد التعثر واستعدت المسار داخل الجلسة نفسها."
       );
     }
 
     if (code === "hesitated_but_completed") {
-      return "You completed a lighter recovery session and kept your work moving.";
+      return "أكملت جلسة أخف وحافظت على حركة التقدّم دون انقطاع.";
     }
 
     if (code === "needed_hint_to_progress") {
-      return "A structured hint helped you move forward in this session.";
+      return "خطوة مساعدة منظّمة ساعدتك على متابعة التقدّم داخل هذه الجلسة.";
     }
 
-    return "You moved through this session with steady momentum.";
+    return "تحركت داخل هذه الجلسة بإيقاع ثابت وواضح.";
+  }
+
+  private buildSessionActiveCourseContext(session: {
+    activeCoursePack: {
+      id: string;
+      courseTitle: string;
+      supportLevelFinal: CoursePackSupportLevel | null;
+      supportLevelCandidate: CoursePackSupportLevel | null;
+      activatedAt: Date | null;
+    } | null;
+    focusCompiledConceptId: string | null;
+    focusCompiledConcept: {
+      displayLabel: string;
+      engineConceptId: string | null;
+    } | null;
+  }): ActiveCourseContextPayload | null {
+    if (!session.activeCoursePack) {
+      return null;
+    }
+
+    return mapActiveCourseContextResponse({
+      coursePackId: session.activeCoursePack.id,
+      courseTitle: session.activeCoursePack.courseTitle,
+      supportLevel:
+        session.activeCoursePack.supportLevelFinal ??
+        session.activeCoursePack.supportLevelCandidate ??
+        CoursePackSupportLevel.planning_review,
+      focusCompiledConceptId: session.focusCompiledConceptId,
+      focusEngineConceptId: session.focusCompiledConcept?.engineConceptId ?? null,
+      focusCompiledConcept: session.focusCompiledConcept,
+      activatedAt: session.activeCoursePack.activatedAt ?? new Date(0),
+    });
+  }
+
+  private async buildSessionRefreshHandoff(input: {
+    session: {
+      activeCoursePackId: string | null;
+      focusCompiledConcept: {
+        sourceConfirmedConceptId: string;
+        displayLabel: string;
+      } | null;
+      generatedAt: Date;
+      refreshSequence: number | null;
+    };
+  }): Promise<SessionRefreshHandoffPayload> {
+    if (
+      !input.session.activeCoursePackId ||
+      input.session.refreshSequence == null
+    ) {
+      return null;
+    }
+
+    const activationSnapshot = await this.prisma.confirmationSnapshot.findFirst({
+      where: {
+        coursePackId: input.session.activeCoursePackId,
+        activatedAt: {
+          not: null,
+          lte: input.session.generatedAt,
+        },
+      },
+      orderBy: {
+        activatedAt: "desc",
+      },
+      include: COURSE_PACK_CONFIRMATION_INCLUDE,
+    });
+
+    if (!activationSnapshot?.activatedAt) {
+      return null;
+    }
+
+    const previousConfirmationSnapshot =
+      await this.prisma.confirmationSnapshot.findFirst({
+        where: {
+          coursePackId: input.session.activeCoursePackId,
+          createdAt: {
+            lt: activationSnapshot.createdAt,
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        include: COURSE_PACK_CONFIRMATION_INCLUDE,
+      });
+
+    const refreshContext = deriveCoursePackRefreshContext({
+      currentConfirmationSnapshot: activationSnapshot,
+      previousConfirmationSnapshot,
+      focusCompiledConcept: input.session.focusCompiledConcept,
+    });
+
+    if (!refreshContext) {
+      return null;
+    }
+
+    return {
+      ...refreshContext,
+      isFirstSessionAfterRefresh: input.session.refreshSequence === 1,
+      isFollowThroughSession: input.session.refreshSequence === 2,
+      isResolutionSession: input.session.refreshSequence === 3,
+    };
+  }
+
+  private buildPersistedRecurringFocusDecision(input: {
+    session: {
+      focusCompiledConceptId: string | null;
+      recurringDecisionType: string | null;
+      recurringSourceConceptId: string | null;
+      recurringSourceConceptLabel: string | null;
+      focusCompiledConcept: {
+        displayLabel: string;
+      } | null;
+      focusConcept: {
+        learnerLabel: string;
+      } | null;
+    };
+  }): RecurringFocusDecisionPayload | null {
+    if (
+      !input.session.recurringDecisionType ||
+      !input.session.recurringSourceConceptLabel
+    ) {
+      return null;
+    }
+
+    const currentFocusLabel =
+      input.session.focusCompiledConcept?.displayLabel ??
+      input.session.focusConcept?.learnerLabel ??
+      "";
+
+    if (!currentFocusLabel) {
+      return null;
+    }
+
+    return {
+      decisionType:
+        input.session
+          .recurringDecisionType as RecurringFocusDecisionPayload["decisionType"],
+      currentFocusNormalizedConceptId: input.session.focusCompiledConceptId,
+      currentFocusLabel,
+      sourceNormalizedConceptId: input.session.recurringSourceConceptId,
+      sourceLabel: input.session.recurringSourceConceptLabel,
+      repeatCount: null,
+      reasonCode: this.getReasonCodeForRecurringDecision(
+        input.session
+          .recurringDecisionType as RecurringFocusDecisionPayload["decisionType"],
+      ),
+      nextStepIntent: this.getNextStepIntentForRecurringDecision(
+        input.session
+          .recurringDecisionType as RecurringFocusDecisionPayload["decisionType"],
+      ),
+    };
+  }
+
+  private getReasonCodeForRecurringDecision(
+    decisionType: RecurringFocusDecisionPayload["decisionType"],
+  ): RecurringFocusDecisionPayload["reasonCode"] {
+    switch (decisionType) {
+      case "escalating_recurring_area":
+        return "recent_support_signal";
+      case "rotating_after_stabilization":
+        return "area_stabilized";
+      case "returning_to_resolved_area":
+        return "genuine_resurfacing";
+      case "holding_against_recent_residue":
+        return "recent_memory_residue";
+      case "rotating_from_recurring_area":
+      case "staying_with_recurring_area":
+      default:
+        return "repeat_focus";
+    }
+  }
+
+  private getNextStepIntentForRecurringDecision(
+    decisionType: RecurringFocusDecisionPayload["decisionType"],
+  ): RecurringFocusDecisionPayload["nextStepIntent"] {
+    if (
+      decisionType === "staying_with_recurring_area" ||
+      decisionType === "escalating_recurring_area" ||
+      decisionType === "returning_to_resolved_area"
+    ) {
+      return "stay";
+    }
+
+    return "move_on";
+  }
+
+  private async updateRefreshFollowThroughAfterSession(
+    tx: Prisma.TransactionClient,
+    input: {
+      learnerId: string;
+      sessionId: string;
+      activeCoursePackId: string | null;
+      refreshSequence: number | null;
+    },
+  ) {
+    if (!input.activeCoursePackId || input.refreshSequence == null) {
+      return;
+    }
+
+    const activeContext = await tx.activeCourseContext.findUnique({
+      where: {
+        learnerId: input.learnerId,
+      },
+    });
+
+    if (!activeContext || activeContext.coursePackId !== input.activeCoursePackId) {
+      return;
+    }
+
+    if (
+      input.refreshSequence == null &&
+      activeContext.refreshResolvedConceptId != null
+    ) {
+      await tx.activeCourseContext.update({
+        where: {
+          learnerId: input.learnerId,
+        },
+        data: {
+          refreshResolvedConceptId: null,
+        },
+      });
+      return;
+    }
+
+    if (input.refreshSequence === 3) {
+      await tx.activeCourseContext.update({
+        where: {
+          learnerId: input.learnerId,
+        },
+        data: {
+          refreshResolvedConceptId: null,
+        },
+      });
+      return;
+    }
+
+    if (input.refreshSequence === 2) {
+      await tx.activeCourseContext.update({
+        where: {
+          learnerId: input.learnerId,
+        },
+        data: {
+          refreshFollowThroughConceptId: null,
+          refreshResolvedConceptId: activeContext.focusCompiledConceptId,
+        },
+      });
+      return;
+    }
+
+    const followThroughConceptId = activeContext.focusCompiledConceptId;
+
+    if (!followThroughConceptId) {
+      return;
+    }
+
+    const [compiledConceptState, incorrectCount] = await Promise.all([
+      tx.learnerCompiledCoachConceptState.findUnique({
+        where: {
+          learnerId_coursePackId_compiledCoachConceptId: {
+            learnerId: input.learnerId,
+            coursePackId: input.activeCoursePackId,
+            compiledCoachConceptId: followThroughConceptId,
+          },
+        },
+      }),
+      tx.attempt.count({
+        where: {
+          learnerId: input.learnerId,
+          sessionId: input.sessionId,
+          isCorrect: false,
+        },
+      }),
+    ]);
+
+    const shouldKeepFollowThrough = shouldContinueRefreshFollowThrough({
+      compiledConceptState,
+      incorrectCount,
+    });
+
+    await tx.activeCourseContext.update({
+      where: {
+        learnerId: input.learnerId,
+      },
+      data: {
+        refreshFollowThroughConceptId: shouldKeepFollowThrough
+          ? followThroughConceptId
+          : null,
+        refreshResolvedConceptId: shouldKeepFollowThrough
+          ? null
+          : followThroughConceptId,
+      },
+    });
+  }
+
+  private async updateRecurringResolutionAfterSession(
+    tx: Prisma.TransactionClient,
+    input: {
+      learnerId: string;
+      activeCoursePackId: string | null;
+      recurringDecisionType: string | null;
+      recurringSourceConceptId: string | null;
+      completedAt: Date;
+    },
+  ) {
+    if (!input.activeCoursePackId || !input.recurringDecisionType) {
+      return;
+    }
+
+    const activeContext = await tx.activeCourseContext.findUnique({
+      where: {
+        learnerId: input.learnerId,
+      },
+    });
+
+    if (!activeContext || activeContext.coursePackId !== input.activeCoursePackId) {
+      return;
+    }
+
+    if (input.recurringDecisionType === "returning_to_resolved_area") {
+      await tx.activeCourseContext.update({
+        where: {
+          learnerId: input.learnerId,
+        },
+        data: {
+          recurringResolvedConceptId: null,
+          recurringResolvedAt: null,
+        },
+      });
+      return;
+    }
+
+    if (
+      !input.recurringSourceConceptId ||
+      ![
+        "rotating_from_recurring_area",
+        "rotating_after_stabilization",
+      ].includes(input.recurringDecisionType)
+    ) {
+      return;
+    }
+
+    await tx.activeCourseContext.update({
+      where: {
+        learnerId: input.learnerId,
+      },
+      data: {
+        recurringResolvedConceptId: input.recurringSourceConceptId,
+        recurringResolvedAt: input.completedAt,
+      },
+    });
   }
 
   private evaluateAnswer(input: {
@@ -885,10 +1395,10 @@ export class SessionService {
 
   private getSessionModeLabel(mode: SessionMode) {
     const labels: Record<SessionMode, string> = {
-      steady_practice: "Steady practice",
-      concept_repair: "Concept repair",
-      debugging_drill: "Debugging drill",
-      recovery_mode: "Recovery mode",
+      steady_practice: "تدريب ثابت",
+      concept_repair: "تقوية الفكرة",
+      debugging_drill: "تدريب على الإصلاح",
+      recovery_mode: "عودة هادئة",
     };
 
     return labels[mode];

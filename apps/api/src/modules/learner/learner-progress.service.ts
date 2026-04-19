@@ -9,13 +9,17 @@ import {
   StabilityState,
 } from "@prisma/client";
 import { Injectable } from "@nestjs/common";
+import { CoursePackContextService } from "../course-pack/course-pack-context.service";
 import { PrismaService } from "../../prisma/prisma.service";
 
 type PersonaClient = Prisma.TransactionClient | PrismaService;
 
 @Injectable()
 export class LearnerProgressService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly coursePackContextService: CoursePackContextService,
+  ) {}
 
   async ensureProgrammingPersona(
     learnerId: string,
@@ -123,6 +127,8 @@ export class LearnerProgressService {
       isCorrect: boolean;
       primaryErrorTag: ProgrammingErrorTag | null;
       sessionMode: SessionMode | null;
+      activeCoursePackId?: string | null;
+      focusCompiledConceptId?: string | null;
     },
   ) {
     const persona = await this.ensureProgrammingPersona(input.learnerId, tx);
@@ -203,6 +209,58 @@ export class LearnerProgressService {
             ? MomentumState.steady
             : persona.sessionMomentumState,
         focusConceptId: input.conceptId,
+      },
+    });
+
+    const resolvedCompiledConcept =
+      await this.coursePackContextService.resolveCompiledConceptForAttempt({
+        learnerId: input.learnerId,
+        coursePackId: input.activeCoursePackId ?? null,
+        focusCompiledConceptId: input.focusCompiledConceptId ?? null,
+        engineConceptId: input.conceptId,
+      });
+
+    if (!resolvedCompiledConcept) {
+      return;
+    }
+
+    const existingCompiledConceptState =
+      await tx.learnerCompiledCoachConceptState.findUnique({
+        where: {
+          learnerId_coursePackId_compiledCoachConceptId: {
+            learnerId: input.learnerId,
+            coursePackId: input.activeCoursePackId!,
+            compiledCoachConceptId: resolvedCompiledConcept.id,
+          },
+        },
+      });
+
+    await tx.learnerCompiledCoachConceptState.upsert({
+      where: {
+        learnerId_coursePackId_compiledCoachConceptId: {
+          learnerId: input.learnerId,
+          coursePackId: input.activeCoursePackId!,
+          compiledCoachConceptId: resolvedCompiledConcept.id,
+        },
+      },
+      update: {
+        masteryState: this.getNextMasteryState(
+          existingCompiledConceptState?.masteryState ?? MasteryState.unknown,
+          input.isCorrect,
+        ),
+        recentErrorTag: input.isCorrect ? null : input.primaryErrorTag,
+        lastObservedAt: new Date(),
+      },
+      create: {
+        learnerId: input.learnerId,
+        coursePackId: input.activeCoursePackId!,
+        compiledCoachConceptId: resolvedCompiledConcept.id,
+        masteryState: this.getNextMasteryState(
+          MasteryState.unknown,
+          input.isCorrect,
+        ),
+        recentErrorTag: input.isCorrect ? null : input.primaryErrorTag,
+        lastObservedAt: new Date(),
       },
     });
   }

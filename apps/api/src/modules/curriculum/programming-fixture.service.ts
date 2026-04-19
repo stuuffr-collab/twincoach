@@ -300,13 +300,13 @@ export class ProgrammingFixtureService {
     taskType: string;
   }) {
     if (input.answerFormat === "short_text") {
-      return "Enter one short answer.";
+      return "اكتب إجابة قصيرة وواضحة.";
     }
 
     if (input.taskType === "bug_spotting") {
-      return "Choose the best fix or bug location.";
+      return "اختر موضع الخطأ أو التعديل الأكثر فائدة.";
     }
 
-    return "Choose one answer.";
+    return "اختر إجابة واحدة.";
   }
 }

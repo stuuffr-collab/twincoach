@@ -80,7 +80,7 @@ function getWrongAnswer(task) {
 }
 
 function assertProgrammingStateShape(payload) {
-  assert.equal(payload.screenTitle, "Your Programming State");
+  assert.equal(payload.screenTitle, "حالتك البرمجية اليوم");
   assert.ok(payload.focusConceptId);
   assert.ok(payload.focusConceptLabel);
   assert.match(

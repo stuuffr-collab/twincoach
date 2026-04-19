@@ -9,7 +9,9 @@ import {
 import { Injectable } from "@nestjs/common";
 import { CurriculumService } from "../curriculum/curriculum.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { CoursePackContextService } from "../course-pack/course-pack-context.service";
 import { LearnerProgressService } from "./learner-progress.service";
+import { ActiveCourseContextPayload } from "../course-pack/course-pack.types";
 
 type PlannerDecision = {
   programmingStateCode:
@@ -29,6 +31,8 @@ type PlannerDecision = {
     | "recent_dropoff";
   rationaleText: string;
   nextStepText: string;
+  focusCompiledConceptId: string | null;
+  activeCourseContext: ActiveCourseContextPayload | null;
 };
 
 @Injectable()
@@ -36,6 +40,7 @@ export class ProgrammingPlannerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly curriculumService: CurriculumService,
+    private readonly coursePackContextService: CoursePackContextService,
     private readonly learnerProgressService: LearnerProgressService,
   ) {}
 
@@ -43,6 +48,10 @@ export class ProgrammingPlannerService {
     const snapshot =
       await this.learnerProgressService.getPersonaSnapshot(learnerId);
     const concepts = await this.curriculumService.getProgrammingConcepts();
+    const [activeCourseContext, enginePlanningContext] = await Promise.all([
+      this.coursePackContextService.getActiveContextPayload(learnerId),
+      this.coursePackContextService.getEngineCompatiblePlanningContext(learnerId),
+    ]);
     const recentIncorrectAttempts = await this.prisma.attempt.findMany({
       where: {
         learnerId,
@@ -60,7 +69,21 @@ export class ProgrammingPlannerService {
       take: 4,
     });
 
+    const shouldPreferActiveCoursePackFocus =
+      activeCourseContext != null &&
+      (activeCourseContext.followThrough != null ||
+        activeCourseContext.refreshContext?.firstSessionPending === true ||
+        activeCourseContext.refreshContext == null);
+
+    const fullCoachFocusConcept =
+      shouldPreferActiveCoursePackFocus &&
+      enginePlanningContext?.focusEngineConceptId != null
+        ? concepts.find(
+            (concept) => concept.id === enginePlanningContext.focusEngineConceptId,
+          ) ?? null
+        : null;
     const focusConcept =
+      fullCoachFocusConcept ??
       this.selectFocusConcept({
         concepts,
         snapshot,
@@ -87,9 +110,16 @@ export class ProgrammingPlannerService {
       sessionMode = SessionMode.debugging_drill;
       rationaleCode = "repeated_debugging_errors";
     } else {
-      const focusConceptState = snapshot.conceptStates.find(
-        (state) => state.conceptId === focusConcept.id,
-      );
+      const focusConceptState =
+        enginePlanningContext?.focusCompiledConceptId != null
+          ? enginePlanningContext.conceptStates.find(
+              (state) =>
+                state.compiledCoachConceptId ===
+                enginePlanningContext.focusCompiledConceptId,
+            ) ?? null
+          : snapshot.conceptStates.find(
+              (state) => state.conceptId === focusConcept.id,
+            ) ?? null;
 
       if (focusConceptState?.masteryState === MasteryState.emerging) {
         sessionMode = SessionMode.concept_repair;
@@ -99,9 +129,13 @@ export class ProgrammingPlannerService {
 
     const decision = this.buildDecision({
       focusConceptId: focusConcept.id,
-      focusConceptLabel: focusConcept.learnerLabel,
+      focusConceptLabel:
+        enginePlanningContext?.focusCompiledConcept?.displayLabel ??
+        focusConcept.learnerLabel,
       sessionMode,
       rationaleCode,
+      focusCompiledConceptId: enginePlanningContext?.focusCompiledConceptId ?? null,
+      activeCourseContext,
     });
 
     if (snapshot.persona?.focusConceptId !== decision.focusConceptId) {
@@ -300,12 +334,14 @@ export class ProgrammingPlannerService {
     focusConceptLabel: string;
     sessionMode: SessionMode;
     rationaleCode: PlannerDecision["rationaleCode"];
+    focusCompiledConceptId: string | null;
+    activeCourseContext: ActiveCourseContextPayload | null;
   }): PlannerDecision {
     const sessionModeLabelMap: Record<SessionMode, string> = {
-      steady_practice: "Steady practice",
-      concept_repair: "Concept repair",
-      debugging_drill: "Debugging drill",
-      recovery_mode: "Recovery mode",
+      steady_practice: "تدريب ثابت",
+      concept_repair: "تقوية الفكرة",
+      debugging_drill: "تدريب على الإصلاح",
+      recovery_mode: "عودة هادئة",
     };
 
     const programmingStateCodeMap: Record<
@@ -322,28 +358,28 @@ export class ProgrammingPlannerService {
       PlannerDecision["programmingStateCode"],
       string
     > = {
-      building_foundations: "Building foundations",
-      debugging_focus: "Debugging focus",
-      steady_progress: "Steady progress",
-      recovery_needed: "Recovery needed",
+      building_foundations: "نبني الأساس",
+      debugging_focus: "نركّز على الإصلاح",
+      steady_progress: "تقدّم ثابت",
+      recovery_needed: "نحتاج عودة هادئة",
     };
 
     const rationaleTextMap: Record<PlannerDecision["rationaleCode"], string> = {
       recent_concept_errors:
-        "Recent work suggests one concept still needs a steadier pass.",
+        "بناءً على عملك الأخير، نعتقد أن هناك فكرة واحدة تحتاج مرورًا أوضح وأكثر ثباتًا.",
       repeated_debugging_errors:
-        "Recent mistakes suggest debugging practice may help most right now.",
+        "أخطاؤك الأخيرة تشير إلى أن تدريب الإصلاح خطوة بخطوة سيكون الأنسب الآن.",
       strong_recent_progress:
-        "Recent work suggests you are ready for a steady practice session.",
+        "أداؤك القريب يشير إلى أنك جاهز لجلسة تدريب ثابتة تبني على ما تحسّن.",
       recent_dropoff:
-        "Recent work suggests a shorter recovery session is the right next step.",
+        "أداؤك القريب يشير إلى أن جلسة أقصر وأهدأ هي الخطوة الصحيحة الآن.",
     };
 
     const nextStepTextMap: Record<SessionMode, string> = {
-      steady_practice: "Work through a short Python practice session.",
-      concept_repair: "Focus on one concept before moving on.",
-      debugging_drill: "Work through debugging one step at a time.",
-      recovery_mode: "Start with a shorter session designed to get you moving again.",
+      steady_practice: "ابدأ جلسة قصيرة تحافظ على تقدّمك في بايثون.",
+      concept_repair: "سنركّز الآن على فكرة واحدة قبل أن نوسّع التدريب.",
+      debugging_drill: "سنأخذك في تدريب منظّم على إصلاح الخطأ خطوة بخطوة.",
+      recovery_mode: "سنبدأ بجلسة أخف تساعدك تعود إلى التقدّم بثبات.",
     };
 
     const programmingStateCode = programmingStateCodeMap[input.sessionMode];
@@ -358,6 +394,8 @@ export class ProgrammingPlannerService {
       rationaleCode: input.rationaleCode,
       rationaleText: rationaleTextMap[input.rationaleCode],
       nextStepText: nextStepTextMap[input.sessionMode],
+      focusCompiledConceptId: input.focusCompiledConceptId,
+      activeCourseContext: input.activeCourseContext,
     };
   }
 

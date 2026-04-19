@@ -9,11 +9,11 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { ProgrammingFixtureService } from "./programming-fixture.service";
 
 const GENERIC_FEEDBACK: Record<FeedbackType, string> = {
-  correct: "Correct.",
-  needs_review: "That answer is not correct. Review the main idea before moving on.",
-  try_fix: "That answer is not correct. Check the key step and try one fix.",
+  correct: "هذه خطوة موفقة.",
+  needs_review: "هذه الإجابة ليست الأدق بعد. لنراجع الفكرة الرئيسية قبل المتابعة.",
+  try_fix: "هذه الإجابة ليست الأدق بعد. راجع الخطوة الأساسية وجرّب تعديلًا واحدًا.",
   needs_another_check:
-    "That answer is not correct. We need one more careful check before moving on.",
+    "هذه الإجابة ليست الأدق بعد. نحتاج فحصًا أخيرًا بهدوء قبل المتابعة.",
 };
 
 @Injectable()

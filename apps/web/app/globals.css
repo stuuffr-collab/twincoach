@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7f8fc;
+  --background: #f4f7fb;
   --surface: #ffffff;
-  --surface-muted: #eef2ff;
-  --text: #111827;
-  --text-muted: #6b7280;
-  --border: #dbe3f0;
-  --primary: #1d4ed8;
-  --primary-soft: #dbeafe;
+  --surface-muted: #eef4ff;
+  --text: #102033;
+  --text-muted: #66768f;
+  --border: #d7e0ee;
+  --primary: #1e5eff;
+  --primary-soft: #dce8ff;
 }
 
 html,
@@ -20,11 +20,104 @@ body {
 }
 
 body {
-  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  font-family:
+    "IBM Plex Sans Arabic",
+    "Noto Sans Arabic",
+    "Segoe UI",
+    Tahoma,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Helvetica Neue",
+    sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
 * {
   box-sizing: border-box;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(30, 94, 255, 0.16);
+}
+
+@keyframes stage-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes soft-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.motion-rise {
+  animation: stage-rise 360ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.motion-rise-delay-1 {
+  animation: stage-rise 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.motion-rise-delay-2 {
+  animation: stage-rise 480ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.motion-rise-delay-3 {
+  animation: stage-rise 540ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.motion-reveal {
+  animation: soft-reveal 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.stage-card {
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
+}
+
+.support-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border-radius: 999px;
+  border: 1px solid rgba(30, 94, 255, 0.12);
+  background: rgba(30, 94, 255, 0.08);
+  padding: 0.45rem 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

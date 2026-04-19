@@ -4,7 +4,7 @@
     "conceptId": "py_c04_functions",
     "taskType": "output_prediction",
     "modeTags": ["steady_practice", "concept_repair", "recovery_mode"],
-    "prompt": "What does this code print?",
+    "prompt": "ماذا سيطبع هذا الكود؟",
     "codeSnippet": "def greet():\n    return \"hi\"\n\nprint(greet())",
     "choices": [
       { "choiceId": "c1", "label": "greet" },
@@ -26,7 +26,7 @@
     "conceptId": "py_c04_functions",
     "taskType": "code_completion",
     "modeTags": ["steady_practice", "concept_repair"],
-    "prompt": "Complete the function so it returns the input plus 1.",
+    "prompt": "أكمل الدالة حتى تعيد قيمة الإدخال + 1.",
     "codeSnippet": "def add_one(value):\n    return ____",
     "choices": [],
     "answerFormat": "short_text",
@@ -43,7 +43,7 @@
     "conceptId": "py_c04_functions",
     "taskType": "concept_choice",
     "modeTags": ["steady_practice", "concept_repair"],
-    "prompt": "Which line calls a function named `show_total` with the value 8?",
+    "prompt": "أي سطر يستدعي دالة اسمها `show_total` بالقيمة 8؟",
     "codeSnippet": null,
     "choices": [
       { "choiceId": "c1", "label": "show_total = 8" },
@@ -65,13 +65,13 @@
     "conceptId": "py_c04_functions",
     "taskType": "bug_spotting",
     "modeTags": ["debugging_drill", "concept_repair"],
-    "prompt": "What is the most useful fix for this function?",
+    "prompt": "ما التعديل الأكثر فائدة لهذه الدالة؟",
     "codeSnippet": "def square(n):\nprint(n * n)",
     "choices": [
-      { "choiceId": "c1", "label": "Indent the `print` line inside the function" },
-      { "choiceId": "c2", "label": "Change `square` to `print`" },
-      { "choiceId": "c3", "label": "Remove the parameter `n`" },
-      { "choiceId": "c4", "label": "Add another `print` above the function" }
+      { "choiceId": "c1", "label": "ضع مسافة بادئة لسطر `print` داخل الدالة" },
+      { "choiceId": "c2", "label": "غيّر `square` إلى `print`" },
+      { "choiceId": "c3", "label": "احذف المعامل `n`" },
+      { "choiceId": "c4", "label": "أضف `print` آخر أعلى الدالة" }
     ],
     "answerFormat": "single_choice",
     "correctAnswer": "c1",

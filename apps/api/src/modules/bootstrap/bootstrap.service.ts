@@ -8,6 +8,7 @@ import {
   SessionStatus,
   SessionType,
 } from "@prisma/client";
+import { CoursePackContextService } from "../course-pack/course-pack-context.service";
 import { CurriculumService } from "../curriculum/curriculum.service";
 import { LearnerProgressService } from "../learner/learner-progress.service";
 import { ProgrammingPlannerService } from "../learner/programming-planner.service";
@@ -21,6 +22,7 @@ export class BootstrapService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly curriculumService: CurriculumService,
+    private readonly coursePackContextService: CoursePackContextService,
     private readonly learnerProgressService: LearnerProgressService,
     private readonly programmingPlannerService: ProgrammingPlannerService,
     private readonly telemetryService: TelemetryService,
@@ -228,20 +230,44 @@ export class BootstrapService {
       learnerId,
     );
 
+    const packProgressMemory = decision.activeCourseContext
+      ? await this.coursePackContextService.getPackProgressMemory({
+          learnerId,
+          currentFocusConceptId: decision.focusConceptId,
+          currentFocusCompiledConceptId: decision.focusCompiledConceptId,
+          currentFocusConceptLabel: decision.focusConceptLabel,
+        })
+      : null;
+    const recurringFocusDecision = decision.activeCourseContext
+      ? await this.coursePackContextService.getRecurringFocusDecision({
+          learnerId,
+          currentFocusConceptId: decision.focusConceptId,
+          currentFocusCompiledConceptId: decision.focusCompiledConceptId,
+          currentFocusConceptLabel: decision.focusConceptLabel,
+          packProgressMemory,
+        })
+      : null;
+
     const payload = {
-      screenTitle: "Your Programming State",
+      screenTitle: "حالتك البرمجية اليوم",
       programmingStateCode: decision.programmingStateCode,
       programmingStateLabel: decision.programmingStateLabel,
       focusConceptId: decision.focusConceptId,
       focusConceptLabel: decision.focusConceptLabel,
+      focusCompiledConceptId: decision.focusCompiledConceptId,
       sessionMode: decision.sessionMode,
       sessionModeLabel: decision.sessionModeLabel,
       rationaleCode: decision.rationaleCode,
       rationaleText: decision.rationaleText,
       nextStepText: decision.nextStepText,
+      activeCourseContext:
+        decision.activeCourseContext ??
+        (await this.coursePackContextService.getActiveContextPayload(learnerId)),
+      packProgressMemory,
+      recurringFocusDecision,
       primaryActionLabel: activeDailySession
-        ? "Resume today's session"
-        : "Start today's session",
+        ? "متابعة تدريب اليوم"
+        : "ابدأ تدريب اليوم",
       hasActiveDailySession: Boolean(activeDailySession),
       activeSessionId: activeDailySession?.id ?? null,
     };

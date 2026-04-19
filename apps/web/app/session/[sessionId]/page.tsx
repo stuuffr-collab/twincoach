@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { ActiveCourseContextCard } from "@/src/components/active-course-context-card";
 import { AnswerInputSwitcher } from "@/src/components/answer-input-switcher";
 import { FeedbackCard } from "@/src/components/feedback-card";
+import { InlineReveal } from "@/src/components/inline-reveal";
 import { PageHeader } from "@/src/components/page-header";
 import { ProgressBar } from "@/src/components/progress-bar";
 import { QuestionCard } from "@/src/components/question-card";
@@ -20,10 +22,44 @@ import {
   type DailySessionPayload,
 } from "@/src/lib/api";
 import {
+  getRefreshFollowThroughPresentation,
+  getRefreshPresentation,
+  getRefreshResolutionPresentation,
+} from "@/src/lib/course-pack-refresh-presentation";
+import { getRecurringFocusPresentation } from "@/src/lib/course-pack-recurring-presentation";
+import {
   getHelpKindLabel,
   getProgrammingTaskTypeLabel,
+  getSessionModeLabel,
   getSessionModeTone,
 } from "@/src/lib/programming-ui";
+import { getSupportLevelPresentation } from "@/src/lib/support-level-presentation";
+
+function getModeSupportText(session: DailySessionPayload) {
+  switch (session.sessionMode) {
+    case "recovery_mode":
+      return "جلسة أخف حتى تعود للحركة بثبات.";
+    case "debugging_drill":
+      return "نقودك خطوة بخطوة داخل إصلاح الخطأ.";
+    case "concept_repair":
+      return "هناك فكرة واحدة تحتاج تركيزًا أوضح الآن.";
+    default:
+      return "نحافظ على تقدمك بإيقاع ثابت وواضح.";
+  }
+}
+
+function getSessionCourseContextCopy(session: DailySessionPayload) {
+  switch (session.activeCourseContext?.supportLevel) {
+    case "full_coach":
+      return "هذه الجلسة مبنية مباشرة على المقرر الذي فعلته، لذلك يبقى التدريب مربوطًا بالمفهوم الحالي داخل موادك المؤكدة.";
+    case "guided_study":
+      return "هذه الجلسة تتحرك مع خريطة المقرر المؤكدة، وتبقي اللغة واضحة حول ما يمكن دعمه بعمق وما يبقى في نطاق التوجيه الدراسي.";
+    case "planning_review":
+      return "هذه الجلسة تخدم خطة المراجعة المؤكدة لهذا المقرر، حتى تبقى الخطوة الحالية مرتبطة بأولوية واقعية من موادك.";
+    default:
+      return getModeSupportText(session);
+  }
+}
 
 export default function DailySessionPage() {
   const params = useParams<{ sessionId: string }>();
@@ -49,6 +85,7 @@ export default function DailySessionPage() {
     async function loadSession() {
       try {
         const payload = await fetchSession(sessionId);
+
         if (cancelled) {
           return;
         }
@@ -60,13 +97,16 @@ export default function DailySessionPage() {
 
         setSession(payload);
       } catch (loadError) {
-        if (loadError instanceof ApiError && loadError.message === "Session completed") {
+        if (
+          loadError instanceof ApiError &&
+          loadError.message === "Session completed"
+        ) {
           router.replace(`/session/${sessionId}/summary`);
           return;
         }
 
         if (!cancelled) {
-          setError("Unable to load your daily programming session.");
+          setError("تعذر تحميل تدريب اليوم الآن.");
         }
       } finally {
         if (!cancelled) {
@@ -180,7 +220,7 @@ export default function DailySessionPage() {
           submitError.message === "Session item mismatch"
         ) {
           await recoverLatestSession(
-            "We refreshed your latest saved question so you can continue safely.",
+            "أعدنا آخر خطوة محفوظة حتى تكمل من المكان الصحيح.",
           );
           return;
         }
@@ -191,7 +231,7 @@ export default function DailySessionPage() {
         }
       }
 
-      setError("We couldn't save that answer yet. Your session is still saved.");
+      setError("تعذر حفظ هذه الخطوة الآن، لكن تقدمك ما زال محفوظًا.");
     } finally {
       setIsSubmitting(false);
     }
@@ -223,12 +263,15 @@ export default function DailySessionPage() {
       setFeedback(null);
       setIsHelpVisible(false);
     } catch (advanceError) {
-      if (advanceError instanceof ApiError && advanceError.message === "Session completed") {
+      if (
+        advanceError instanceof ApiError &&
+        advanceError.message === "Session completed"
+      ) {
         router.replace(`/session/${session.sessionId}/summary`);
         return;
       }
 
-      setError("We couldn't load the next practice step yet. Try again.");
+      setError("تعذر تحميل الخطوة التالية الآن. جرّب مرة أخرى.");
     } finally {
       setIsAdvancing(false);
     }
@@ -253,12 +296,15 @@ export default function DailySessionPage() {
       setIsHelpVisible(false);
       setError(nextError);
     } catch (recoveryError) {
-      if (recoveryError instanceof ApiError && recoveryError.message === "Session completed") {
+      if (
+        recoveryError instanceof ApiError &&
+        recoveryError.message === "Session completed"
+      ) {
         router.replace(`/session/${session.sessionId}/summary`);
         return;
       }
 
-      setError("We couldn't restore your saved session state. Refresh and try again.");
+      setError("تعذر استعادة الجلسة المحفوظة. حدّث الصفحة ثم جرّب مرة أخرى.");
     }
   }
 
@@ -294,38 +340,111 @@ export default function DailySessionPage() {
 
   const primaryLabel = feedback
     ? feedback.sessionStatus === "completed"
-      ? "View your recap"
-      : "Continue"
+      ? "عرض الخلاصة"
+      : "متابعة"
     : isSubmitting
-      ? "Saving..."
-      : "Submit answer";
+      ? "نثبّت الإجابة..."
+      : "تثبيت الإجابة";
+
+  const supportLevelPresentation = getSupportLevelPresentation(
+    session?.activeCourseContext?.supportLevel ?? null,
+  );
+  const refreshPresentation = useMemo(() => {
+    if (
+      !session?.activeCourseContext ||
+      !session.refreshHandoff?.isFirstSessionAfterRefresh
+    ) {
+      return null;
+    }
+
+    return getRefreshPresentation("session", {
+      courseTitle: session.activeCourseContext.courseTitle,
+      focusLabel:
+        session.activeCourseContext.focusNormalizedConceptLabel ??
+        session.focusConceptLabel,
+      refreshContext: session.refreshHandoff,
+    });
+  }, [session]);
+  const followThroughPresentation = useMemo(() => {
+    if (
+      !session?.activeCourseContext?.followThrough ||
+      !session.refreshHandoff?.isFollowThroughSession
+    ) {
+      return null;
+    }
+
+    return getRefreshFollowThroughPresentation("session", {
+      courseTitle: session.activeCourseContext.courseTitle,
+      focusLabel:
+        session.activeCourseContext.followThrough.targetLabel ??
+        session.activeCourseContext.focusNormalizedConceptLabel ??
+        session.focusConceptLabel,
+      followThrough: session.activeCourseContext.followThrough,
+    });
+  }, [session]);
+  const resolutionPresentation = useMemo(() => {
+    if (
+      !session?.activeCourseContext?.resolution ||
+      session.refreshHandoff?.isFirstSessionAfterRefresh ||
+      session.refreshHandoff?.isFollowThroughSession
+    ) {
+      return null;
+    }
+
+    return getRefreshResolutionPresentation("session", {
+      courseTitle: session.activeCourseContext.courseTitle,
+      focusLabel:
+        session.activeCourseContext.focusNormalizedConceptLabel ??
+        session.focusConceptLabel,
+      resolution: session.activeCourseContext.resolution,
+    });
+  }, [session]);
+  const recurringPresentation = useMemo(() => {
+    if (
+      !session?.activeCourseContext ||
+      !session.recurringFocusDecision ||
+      refreshPresentation ||
+      followThroughPresentation ||
+      resolutionPresentation
+    ) {
+      return null;
+    }
+
+    return getRecurringFocusPresentation("session", {
+      courseTitle: session.activeCourseContext.courseTitle,
+      decision: session.recurringFocusDecision,
+    });
+  }, [
+    followThroughPresentation,
+    refreshPresentation,
+    resolutionPresentation,
+    session,
+  ]);
 
   return (
     <StudentShell>
       <PageHeader
-        detail="This session stays focused on one short Python step at a time, and your progress is saved as you go."
-        eyebrow="Today's session"
-        subtitle="Guided daily practice shaped by your recent programming work."
-        title="Keep your momentum going"
+        eyebrow="تدريب اليوم"
+        subtitle="خطوة واحدة محفوظة في كل مرة."
+        title="نكمل تدريبك بوضوح وهدوء"
       />
 
       {session ? (
         <ProgressBar
-          badgeText="Saved as you go"
+          badgeText="محفوظ أولًا بأول"
           currentIndex={session.currentIndex}
-          label={session.sessionModeLabel}
-          supportingText="Focus on one task, one correction, and one next step at a time."
+          label={getSessionModeLabel(session.sessionMode)}
           tone="session"
           totalItems={session.totalItems}
         />
       ) : null}
 
-      <section className="flex flex-1 flex-col gap-4 px-4 py-4">
+      <section className="flex flex-1 flex-col gap-4 px-4 py-4 md:px-6">
         {loading ? (
           <StatePanel
-            description="We're loading today's next saved Python practice step."
-            eyebrow="Today's practice"
-            title="Loading your guided practice..."
+            description="نستعيد آخر خطوة محفوظة لك."
+            eyebrow="تدريب اليوم"
+            title="نحضر الجلسة..."
             tone="loading"
           />
         ) : null}
@@ -333,38 +452,199 @@ export default function DailySessionPage() {
         {error ? (
           <StatePanel
             description={error}
-            eyebrow="Session update"
-            title="We hit a temporary issue."
-            tone={error.includes("refreshed") || error.includes("restore") ? "recovery" : "error"}
+            eyebrow="تحديث الجلسة"
+            title="ظهر خلل مؤقت."
+            tone={
+              error.includes("أعدنا") || error.includes("استعادة")
+                ? "recovery"
+                : "error"
+            }
           />
         ) : null}
 
         {session ? (
           <>
-            <div className="rounded-[1.5rem] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
+            {refreshPresentation ? (
+              <div className="space-y-3">
+                <StatePanel
+                  description={refreshPresentation.description}
+                  eyebrow="إعادة دخول بعد تحديث المقرر"
+                  title={refreshPresentation.title}
+                  tone="recovery"
+                />
+                <div className="rounded-[1.4rem] border border-blue-200 bg-white/90 p-4 shadow-sm">
+                  <div className="flex flex-wrap gap-2">
+                    <span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-900 shadow-sm">
+                      {refreshPresentation.reasonChip}
+                    </span>
+                    <span className="inline-flex rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--text)] shadow-sm">
+                      أول جلسة بعد التحديث
+                    </span>
+                  </div>
+                  <div className="mt-3 text-sm leading-7 text-[var(--text-muted)]">
+                    {refreshPresentation.supportingText}
+                  </div>
+                </div>
+              </div>
+            ) : followThroughPresentation ? (
+              <div className="space-y-3">
+                <StatePanel
+                  description={followThroughPresentation.description}
+                  eyebrow="متابعة لنفس الجزء"
+                  title={followThroughPresentation.title}
+                  tone="recovery"
+                />
+                <div className="rounded-[1.4rem] border border-blue-200 bg-white/90 p-4 shadow-sm">
+                  <div className="flex flex-wrap gap-2">
+                    <span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-900 shadow-sm">
+                      {followThroughPresentation.reasonChip}
+                    </span>
+                    <span className="inline-flex rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--text)] shadow-sm">
+                      استكمال قصير مقصود
+                    </span>
+                  </div>
+                  <div className="mt-3 text-sm leading-7 text-[var(--text-muted)]">
+                    {followThroughPresentation.supportingText}
+                  </div>
+                </div>
+              </div>
+            ) : resolutionPresentation ? (
+              <div className="space-y-3">
+                <StatePanel
+                  description={resolutionPresentation.description}
+                  eyebrow="عودة مقصودة إلى المسار الطبيعي"
+                  title={resolutionPresentation.title}
+                  tone="recovery"
+                />
+                <div className="rounded-[1.4rem] border border-blue-200 bg-white/90 p-4 shadow-sm">
+                  <div className="flex flex-wrap gap-2">
+                    <span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-900 shadow-sm">
+                      {resolutionPresentation.reasonChip}
+                    </span>
+                    <span className="inline-flex rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--text)] shadow-sm">
+                      أول خطوة بعد انتهاء المتابعة
+                    </span>
+                  </div>
+                  <div className="mt-3 text-sm leading-7 text-[var(--text-muted)]">
+                    {resolutionPresentation.supportingText}
+                  </div>
+                </div>
+              </div>
+            ) : recurringPresentation ? (
+              <div className="space-y-3">
+                <StatePanel
+                  description={recurringPresentation.description}
+                  eyebrow="استمرارية هذا الجزء"
+                  title={recurringPresentation.title}
+                  tone="recovery"
+                />
+                <div className="rounded-[1.4rem] border border-blue-200 bg-white/90 p-4 shadow-sm">
+                  <div className="flex flex-wrap gap-2">
+                    <span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-900 shadow-sm">
+                      {recurringPresentation.reasonChip}
+                    </span>
+                    <span className="inline-flex rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-xs font-semibold text-[var(--text)] shadow-sm">
+                      {session.recurringFocusDecision?.nextStepIntent === "stay"
+                        ? "ليست إعادة عشوائية"
+                        : "انتقال مقصود"}
+                    </span>
+                  </div>
+                  <div className="mt-3 text-sm leading-7 text-[var(--text-muted)]">
+                    {recurringPresentation.supportingText}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {session.activeCourseContext ? (
+              <ActiveCourseContextCard
+                activeCourseContext={session.activeCourseContext}
+                compact
+                description={getSessionCourseContextCopy(session)}
+                eyebrow="هذه الجلسة مرتبطة بمقررك النشط"
+                focusLabel={
+                  session.activeCourseContext.focusNormalizedConceptLabel ??
+                  session.focusConceptLabel
+                }
+                linkLabel="راجع إعداد المقرر"
+              />
+            ) : null}
+
+            <div className="motion-rise stage-card rounded-[1.9rem] p-5">
               <div className="flex flex-wrap gap-2">
                 <span
                   className={`inline-flex rounded-full border px-3 py-1.5 text-sm font-semibold ${getSessionModeTone(session.sessionMode)}`}
                 >
-                  {session.sessionModeLabel}
+                  {getSessionModeLabel(session.sessionMode)}
                 </span>
+                {session.activeCourseContext ? (
+                  <span className="inline-flex rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-sm font-semibold text-[var(--text)] shadow-sm">
+                    من {session.activeCourseContext.courseTitle}
+                  </span>
+                ) : null}
                 <span className="inline-flex rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-sm font-semibold text-[var(--text)] shadow-sm">
-                  Focus: {session.focusConceptLabel}
+                  التركيز: {session.focusConceptLabel}
                 </span>
+                <span className="support-chip">تقدمك محفوظ</span>
               </div>
-              {session.currentTask.helpAvailable && !feedback ? (
-                <div className="mt-4 text-sm leading-6 text-[var(--text-muted)]">
-                  {session.currentTask.helpLabel ?? "Hint available"}:{" "}
-                  {session.currentTask.helpKind
-                    ? `${getHelpKindLabel(session.currentTask.helpKind)} support can appear after an incorrect answer if you need it.`
-                    : "A structured hint can appear after an incorrect answer if you need it."}
+
+              <div className="mt-4 text-sm leading-7 text-[var(--text)]">
+                {session.activeCourseContext
+                  ? getSessionCourseContextCopy(session)
+                  : getModeSupportText(session)}
+              </div>
+
+              {session.activeCourseContext ? (
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  <div className="rounded-[1.3rem] border border-[var(--border)] bg-white/82 p-4 shadow-sm">
+                    <div className="text-xs font-semibold text-[var(--text-muted)]">
+                      {supportLevelPresentation.session.expectationTitle}
+                    </div>
+                    <div className="mt-2 text-sm leading-7 text-[var(--text)]">
+                      {supportLevelPresentation.session.expectationText}
+                    </div>
+                  </div>
+                  <div className="rounded-[1.3rem] border border-[var(--border)] bg-white/82 p-4 shadow-sm">
+                    <div className="text-xs font-semibold text-[var(--text-muted)]">
+                      {supportLevelPresentation.session.evaluationTitle}
+                    </div>
+                    <div className="mt-2 text-sm leading-7 text-[var(--text)]">
+                      {supportLevelPresentation.session.evaluationText}
+                    </div>
+                  </div>
+                  <div className="rounded-[1.3rem] border border-[var(--border)] bg-white/82 p-4 shadow-sm">
+                    <div className="text-xs font-semibold text-[var(--text-muted)]">
+                      {supportLevelPresentation.session.outcomeTitle}
+                    </div>
+                    <div className="mt-2 text-sm leading-7 text-[var(--text)]">
+                      {supportLevelPresentation.session.outcomeText}
+                    </div>
+                  </div>
                 </div>
               ) : null}
+
+              <div className="mt-4 flex flex-wrap gap-3">
+                <InlineReveal label="لماذا هذا الآن؟" tone="soft">
+                  {session.activeCourseContext
+                    ? supportLevelPresentation.session.helpHint
+                    : getModeSupportText(session)}
+                </InlineReveal>
+
+                {session.currentTask.helpAvailable ? (
+                  <span className="inline-flex rounded-full border border-[var(--border)] bg-white px-3 py-2 text-xs font-semibold text-[var(--text-muted)] shadow-sm">
+                    {session.currentTask.helpKind
+                      ? `دعم متكيف: ${getHelpKindLabel(session.currentTask.helpKind)}`
+                      : session.activeCourseContext
+                        ? supportLevelPresentation.session.helpHint
+                        : session.currentTask.helpLabel ?? "يمكن إظهار خطوة مساعدة"}
+                  </span>
+                ) : null}
+              </div>
             </div>
 
             <QuestionCard
               codeSnippet={session.currentTask.codeSnippet}
-              eyebrow="Today's task"
+              eyebrow="الخطوة الحالية"
               helper={session.currentTask.helperText}
               stem={session.currentTask.prompt}
               taskTypeLabel={getProgrammingTaskTypeLabel(session.currentTask.taskType)}
@@ -390,26 +670,21 @@ export default function DailySessionPage() {
         ) : null}
 
         {feedback?.helpOffer ? (
-          <div className="rounded-[1.5rem] border border-blue-200 bg-blue-50 p-4 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-800">
-                  {getHelpKindLabel(feedback.helpOffer.helpKind)}
-                </div>
-                <div className="mt-2 text-sm leading-6 text-blue-900">
-                  Reveal a structured hint if you want one more nudge before moving on.
-                </div>
+          <div className="motion-reveal rounded-[1.55rem] border border-blue-200 bg-blue-50 p-4 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm font-semibold text-blue-900">
+                {getHelpKindLabel(feedback.helpOffer.helpKind)}
               </div>
               <button
-                className="rounded-full border border-blue-300 bg-white px-3 py-2 text-sm font-semibold text-blue-900 shadow-sm"
+                className="rounded-full border border-blue-300 bg-white px-3 py-2 text-sm font-semibold text-blue-900 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                 onClick={handleToggleHelp}
                 type="button"
               >
-                {isHelpVisible ? "Hide hint" : feedback.helpOffer.label}
+                {isHelpVisible ? "إخفاء المساعدة" : feedback.helpOffer.label}
               </button>
             </div>
             {isHelpVisible ? (
-              <div className="mt-4 rounded-2xl border border-blue-200 bg-white p-4 text-sm leading-6 text-[var(--text)] shadow-sm">
+              <div className="motion-reveal mt-4 rounded-2xl border border-blue-200 bg-white p-4 text-sm leading-7 text-[var(--text)] shadow-sm">
                 {feedback.helpOffer.text}
               </div>
             ) : null}
@@ -430,9 +705,15 @@ export default function DailySessionPage() {
         supportingText={
           feedback
             ? feedback.sessionStatus === "completed"
-              ? "We'll take you to your saved session recap."
-              : "Your answer is saved. Continue when you're ready."
-            : "Your session is saved after each answer."
+              ? session?.activeCourseContext
+                ? supportLevelPresentation.session.completedSupportingText
+                : "سننقلك إلى خلاصة الجلسة."
+              : session?.activeCourseContext
+                ? supportLevelPresentation.session.continueSupportingText
+                : "خطوتك محفوظة، ويمكنك المتابعة الآن."
+            : session?.activeCourseContext
+              ? supportLevelPresentation.session.submitSupportingText
+              : "نحفظ التقدم بعد كل خطوة."
         }
       />
     </StudentShell>

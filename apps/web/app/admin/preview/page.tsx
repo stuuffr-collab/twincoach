@@ -109,6 +109,15 @@ export default function AdminPreviewPage() {
             Mode: {formatTokenLabel(result.sessionMode)} | Focus:{" "}
             {result.focusConceptLabel || "Not available yet"}
           </div>
+          {result.activeCourseContext ? (
+            <div className="mt-2 text-sm text-[var(--text-muted)]">
+              Active pack: {result.activeCourseContext.courseTitle} |{" "}
+              {formatTokenLabel(result.activeCourseContext.supportLevel)} | Compiled
+              focus:{" "}
+              {result.activeCourseContext.focusNormalizedConceptLabel ||
+                "Not available yet"}
+            </div>
+          ) : null}
           <div className="mt-4 grid gap-2">
             {result.items.map((item) => (
               <div

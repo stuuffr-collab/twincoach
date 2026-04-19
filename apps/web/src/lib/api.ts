@@ -1,4 +1,10 @@
 import { getAdminKey } from "@/src/lib/admin-access";
+import {
+  persistOnboardingProfile,
+  persistProgrammingState,
+  persistRecentMode,
+  persistSessionSummary,
+} from "@/src/lib/learner-profile-lite";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ?? "";
 const LEARNER_ID_STORAGE_KEY = "twincoach.learnerId";
@@ -87,6 +93,104 @@ export type ProgrammingTaskChoice = {
   label: string;
 };
 
+export type ActiveCourseContext = {
+  coursePackId: string;
+  courseTitle: string;
+  supportLevel:
+    | "full_coach"
+    | "guided_study"
+    | "planning_review"
+    | "not_ready";
+  focusNormalizedConceptId: string | null;
+  focusNormalizedConceptLabel: string | null;
+  focusEngineConceptId: string | null;
+  activatedAt: string;
+  refreshContext: {
+    reasonType:
+      | "changed_concept"
+      | "changed_blueprint_priority"
+      | "support_level_impact"
+      | "new_material";
+    sourceLabel: string | null;
+    previousSupportLevel:
+      | "full_coach"
+      | "guided_study"
+      | "planning_review"
+      | "not_ready"
+      | null;
+    currentSupportLevel:
+      | "full_coach"
+      | "guided_study"
+      | "planning_review"
+      | "not_ready";
+    firstSessionPending: boolean;
+  } | null;
+  followThrough: {
+    targetNormalizedConceptId: string;
+    targetLabel: string | null;
+    reasonType:
+      | "changed_concept"
+      | "changed_blueprint_priority"
+      | "support_level_impact"
+      | "new_material";
+  } | null;
+  resolution: {
+    resolvedNormalizedConceptId: string;
+    resolvedLabel: string | null;
+    reasonType:
+      | "changed_concept"
+      | "changed_blueprint_priority"
+      | "support_level_impact"
+      | "new_material";
+  } | null;
+};
+
+export type PackProgressMemory = {
+  recentFocusHistory: Array<{
+    normalizedConceptId: string | null;
+    label: string;
+    observedAt: string;
+    status: "current" | "recently_resolved" | "recent";
+    isRecurring: boolean;
+  }>;
+  recentlyStabilized: {
+    normalizedConceptId: string | null;
+    label: string;
+  } | null;
+  recurring: {
+    normalizedConceptId: string | null;
+    label: string;
+    reason: "repeat_focus" | "recent_support_signal";
+    repeatCount: number;
+  } | null;
+  carryForward: {
+    label: string;
+    reason: "recently_stabilized" | "recent_focus_chain" | "recurring_area";
+  } | null;
+};
+
+export type RecurringFocusDecision = {
+  decisionType:
+    | "staying_with_recurring_area"
+    | "escalating_recurring_area"
+    | "rotating_from_recurring_area"
+    | "rotating_after_stabilization"
+    | "returning_to_resolved_area"
+    | "holding_against_recent_residue";
+  currentFocusNormalizedConceptId: string | null;
+  currentFocusLabel: string;
+  sourceNormalizedConceptId: string | null;
+  sourceLabel: string;
+  repeatCount: number | null;
+  reasonCode:
+    | "repeat_focus"
+    | "recent_support_signal"
+    | "area_stabilized"
+    | "genuine_resurfacing"
+    | "recent_memory_residue";
+  nextStepIntent: "stay" | "move_on";
+};
+
 export type ProgrammingTaskBase = {
   sessionItemId: string;
   taskId: string;
@@ -115,6 +219,7 @@ export type DiagnosticSessionPayload = {
   totalItems: number;
   checkpointToken: string;
   currentTask: DiagnosticTaskPayload;
+  activeCourseContext: ActiveCourseContext | null;
 };
 
 export type DailySessionPayload = {
@@ -125,10 +230,35 @@ export type DailySessionPayload = {
   sessionModeLabel: string;
   focusConceptId: string | null;
   focusConceptLabel: string;
+  focusCompiledConceptId: string | null;
+  refreshHandoff: {
+    reasonType:
+      | "changed_concept"
+      | "changed_blueprint_priority"
+      | "support_level_impact"
+      | "new_material";
+    sourceLabel: string | null;
+    previousSupportLevel:
+      | "full_coach"
+      | "guided_study"
+      | "planning_review"
+      | "not_ready"
+      | null;
+    currentSupportLevel:
+      | "full_coach"
+      | "guided_study"
+      | "planning_review"
+      | "not_ready";
+    isFirstSessionAfterRefresh: boolean;
+    isFollowThroughSession: boolean;
+    isResolutionSession: boolean;
+  } | null;
+  recurringFocusDecision: RecurringFocusDecision | null;
   currentIndex: number;
   totalItems: number;
   checkpointToken: string;
   currentTask: DailyTaskPayload;
+  activeCourseContext: ActiveCourseContext | null;
 };
 
 export type SessionPayload = DiagnosticSessionPayload | DailySessionPayload;
@@ -165,17 +295,21 @@ export type OnboardingResponse = {
 };
 
 export type ProgrammingState = {
-  screenTitle: "Your Programming State";
+  screenTitle: string;
   programmingStateCode: ProgrammingStateCode;
   programmingStateLabel: string;
   focusConceptId: string;
   focusConceptLabel: string;
+  focusCompiledConceptId: string | null;
   sessionMode: SessionMode;
   sessionModeLabel: string;
   rationaleCode: RationaleCode;
   rationaleText: string;
   nextStepText: string;
-  primaryActionLabel: "Start today's session" | "Resume today's session";
+  activeCourseContext: ActiveCourseContext | null;
+  packProgressMemory: PackProgressMemory | null;
+  recurringFocusDecision: RecurringFocusDecision | null;
+  primaryActionLabel: string;
   hasActiveDailySession: boolean;
   activeSessionId: string | null;
 };
@@ -185,6 +319,31 @@ export type SessionSummary = {
   sessionMode: SessionMode | null;
   focusConceptId: string | null;
   focusConceptLabel: string;
+  focusCompiledConceptId: string | null;
+  refreshHandoff: {
+    reasonType:
+      | "changed_concept"
+      | "changed_blueprint_priority"
+      | "support_level_impact"
+      | "new_material";
+    sourceLabel: string | null;
+    previousSupportLevel:
+      | "full_coach"
+      | "guided_study"
+      | "planning_review"
+      | "not_ready"
+      | null;
+    currentSupportLevel:
+      | "full_coach"
+      | "guided_study"
+      | "planning_review"
+      | "not_ready";
+    isFirstSessionAfterRefresh: boolean;
+    isFollowThroughSession: boolean;
+    isResolutionSession: boolean;
+  } | null;
+  recurringFocusDecision: RecurringFocusDecision | null;
+  activeCourseContext: ActiveCourseContext | null;
   completedTaskCount: number;
   correctCount: number;
   incorrectCount: number;
@@ -215,6 +374,7 @@ export type AdminRecentLearner = {
   learnerId: string;
   focusConceptId: string;
   focusConceptLabel: string;
+  activeCourseContext: AdminActiveCourseContext | null;
   sessionMode: SessionMode | null;
   sessionMomentumState: MomentumState;
   activeDiagnosticSessionId: string;
@@ -222,8 +382,113 @@ export type AdminRecentLearner = {
   lastActivityAt: string;
 };
 
+export type AdminActiveCourseContext = ActiveCourseContext;
+
+export type AdminCoursePackDocument = {
+  documentId: string;
+  originalFilename: string;
+  validationStatus: string;
+  parseStatus: string;
+  suggestedRole: string | null;
+  confirmedRole: string | null;
+  roleConfidenceScore: number | null;
+  parseConfidenceScore: number | null;
+  warningCodes: string[];
+  blockingIssueCode: string | null;
+  uploadedAt: string;
+};
+
+export type AdminCoursePackExtraction = {
+  extractionSnapshotId: string;
+  coverageStatus: string;
+  averageConfidenceScore: number;
+  lowConfidenceItemCount: number;
+  warningCodes: string[];
+  unitCount: number;
+  conceptCount: number;
+  dependencyCount: number;
+  themeCount: number;
+  unsupportedTopicCount: number;
+  generatedAt: string;
+};
+
+export type AdminCoursePackSupportLevelAssessment = {
+  supportLevelAssessmentId: string;
+  parseIntegrityScore: number;
+  structureConfidenceScore: number;
+  blueprintConfidenceScore: number;
+  packCompletenessScore: number;
+  coachableCoverageScore: number;
+  evaluationReliabilityScore: number;
+  candidateSupportLevel: string;
+};
+
+export type AdminCoursePackConfirmation = {
+  confirmationSnapshotId: string;
+  status: string;
+  editedItemCount: number;
+  mergeActionCount: number;
+  lowConfidenceAcknowledged: boolean;
+  lowConfidenceIncludedCount: number;
+  confirmedUnitCount: number;
+  confirmedConceptCount: number;
+  confirmedAt: string;
+  activatedAt: string | null;
+};
+
+export type AdminCoursePackCompilation = {
+  compiledCoachPackId: string;
+  compilationStatus: string;
+  supportLevel: string;
+  focusNormalizedConceptId: string | null;
+  focusNormalizedConceptLabel: string | null;
+  focusEngineConceptId: string | null;
+  normalizedConceptCount: number;
+  compiledAt: string;
+};
+
+export type AdminCoursePackOperationalView = {
+  coursePackId: string;
+  courseTitle: string;
+  courseCode: string | null;
+  institutionLabel: string | null;
+  termLabel: string | null;
+  lifecycleState: string;
+  readinessState: string;
+  supportLevelCandidate: string | null;
+  supportLevelFinal: string | null;
+  isActive: boolean;
+  activeConfirmationSnapshotId: string | null;
+  documentCount: number;
+  confirmedUnitCount: number;
+  confirmedConceptCount: number;
+  unsupportedTopicCount: number;
+  createdAt: string;
+  updatedAt: string;
+  confirmedAt: string | null;
+  activatedAt: string | null;
+  documents: AdminCoursePackDocument[];
+  latestExtraction: AdminCoursePackExtraction | null;
+  supportLevelAssessment: AdminCoursePackSupportLevelAssessment | null;
+  latestConfirmation: AdminCoursePackConfirmation | null;
+  activation: {
+    isActive: boolean;
+    supportLevelFinal: string | null;
+    activatedAt: string | null;
+    activeContext: AdminActiveCourseContext | null;
+  };
+  compilation: AdminCoursePackCompilation | null;
+  unsupportedTopics: Array<{
+    unsupportedTopicId: string;
+    label: string;
+    reasonCode: string;
+    suggestedHandling: string;
+  }>;
+};
+
 export type AdminLearnerLookup = {
   learnerId: string;
+  activeCourseContext: AdminActiveCourseContext | null;
   onboardingProfile: {
     priorProgrammingExposure: PriorProgrammingExposure;
     currentComfortLevel: CurrentComfortLevel;
@@ -248,6 +513,7 @@ export type AdminLearnerLookup = {
   };
   activeDiagnosticSessionId: string;
   activeDailySessionId: string;
+  coursePacks: AdminCoursePackOperationalView[];
   recentErrorTags: Array<{
     primaryErrorTag: ProgrammingErrorTag | null;
     createdAt: string;
@@ -278,6 +544,8 @@ export type AdminSessionPreview = {
   sessionMode: SessionMode | null;
   focusConceptId: string | null;
   focusConceptLabel: string;
+  focusCompiledConceptId: string | null;
+  activeCourseContext: AdminActiveCourseContext | null;
   status: string;
   currentIndex: number;
   totalItems: number;
@@ -290,6 +558,383 @@ export type AdminSessionPreview = {
     taskType: ProgrammingTaskType;
     isActive: boolean;
   }>;
+};
+
+export type CoursePackSupportLevel =
+  | "full_coach"
+  | "guided_study"
+  | "planning_review"
+  | "not_ready";
+
+export type CoursePackDriftStatus =
+  | "clean"
+  | "pending_refresh"
+  | "review_required";
+
+export type CoursePackActiveContextState = "current" | "stale";
+
+export type CoursePackLifecycleState =
+  | "draft"
+  | "ingesting"
+  | "classifying"
+  | "extracting"
+  | "awaiting_confirmation"
+  | "confirmed"
+  | "active"
+  | "archived"
+  | "failed";
+
+export type CoursePackReadinessState =
+  | "awaiting_documents"
+  | "awaiting_roles"
+  | "awaiting_extraction"
+  | "review_ready"
+  | "activation_ready"
+  | "blocked";
+
+export type CoursePackDocumentRole =
+  | "syllabus"
+  | "lecture_notes"
+  | "slides"
+  | "past_exam"
+  | "lab_sheet"
+  | "assignment"
+  | "reference"
+  | "other"
+  | "unknown";
+
+export type CoursePackDocumentValidationStatus =
+  | "queued"
+  | "valid"
+  | "rejected";
+
+export type CoursePackDocumentParseStatus =
+  | "queued"
+  | "validating"
+  | "validated"
+  | "parsing"
+  | "parsed"
+  | "partial"
+  | "failed"
+  | "blocked";
+
+export type CoursePackDocument = {
+  documentId: string;
+  originalFilename: string;
+  mimeType: string;
+  byteSize: number;
+  pageCount: number | null;
+  checksumSha256: string;
+  uploadedAt: string;
+  validationStatus: CoursePackDocumentValidationStatus;
+  suggestedRole: CoursePackDocumentRole | null;
+  confirmedRole: CoursePackDocumentRole | null;
+  roleConfidenceScore: number | null;
+  roleReasonCodes: string[];
+  alternateRoles: Array<{
+    role: CoursePackDocumentRole;
+    confidenceScore: number;
+  }>;
+  parseStatus: CoursePackDocumentParseStatus;
+  parseConfidenceScore: number | null;
+  hasSelectableText: boolean | null;
+  textCoverageRatio: number | null;
+  warningCodes: string[];
+  blockingIssueCode: string | null;
+};
+
+export type CoursePackRecord = {
+  coursePackId: string;
+  learnerId: string;
+  courseTitle: string;
+  courseCode: string | null;
+  institutionLabel: string | null;
+  termLabel: string | null;
+  primaryLanguage: string;
+  lifecycleState: CoursePackLifecycleState;
+  readinessState: CoursePackReadinessState;
+  supportLevelCandidate: CoursePackSupportLevel | null;
+  supportLevelFinal: CoursePackSupportLevel | null;
+  driftStatus: CoursePackDriftStatus;
+  driftReasonCodes: string[];
+  requiresReconfirmation: boolean;
+  activeContextState: CoursePackActiveContextState;
+  isActive: boolean;
+  documentCount: number;
+  confirmedUnitCount: number;
+  confirmedConceptCount: number;
+  unsupportedTopicCount: number;
+  createdAt: string;
+  updatedAt: string;
+  confirmedAt: string | null;
+  activatedAt: string | null;
+  archivedAt: string | null;
+  documents: CoursePackDocument[];
+};
+
+export type CoursePackSourceEvidence = {
+  evidenceId: string;
+  documentId: string;
+  pageStart: number;
+  pageEnd: number;
+  evidenceType: string;
+  snippet: string;
+};
+
+export type CoursePackUnitCandidate = {
+  unitCandidateId: string;
+  rawTitle: string;
+  normalizedTitle: string;
+  sequenceOrderCandidate: number;
+  importanceTierCandidate: string;
+  confidenceScore: number;
+  sourceEvidenceIds: string[];
+};
+
+export type CoursePackConceptCandidate = {
+  conceptCandidateId: string;
+  unitCandidateId: string | null;
+  rawLabel: string;
+  learnerLabelCandidate: string;
+  sequenceOrderCandidate: number;
+  difficultyTierCandidate: string;
+  importanceTierCandidate: string;
+  assessmentRelevanceCandidate: string;
+  canonicalMappingCandidate: string | null;
+  mappingConfidenceScore: number | null;
+  coachabilityStatus: string;
+  sourceEvidenceIds: string[];
+};
+
+export type CoursePackDependencyCandidate = {
+  dependencyCandidateId: string;
+  fromConceptCandidateId: string;
+  toConceptCandidateId: string;
+  edgeType: string;
+  confidenceScore: number;
+  sourceEvidenceIds: string[];
+};
+
+export type CoursePackRecurringTheme = {
+  themeId: string;
+  label: string;
+  frequencyScore: number;
+  relatedConceptCandidateIds: string[];
+  sourceEvidenceIds: string[];
+};
+
+export type CoursePackUnsupportedTopic = {
+  unsupportedTopicId: string;
+  rawLabel: string;
+  reasonCode: string;
+  sourceEvidenceIds: string[];
+  suggestedHandling: string;
+};
+
+export type CoursePackGraph = {
+  courseGraphId: string;
+  version: number;
+  averageConfidenceScore: number;
+  units: Array<{
+    graphUnitId: string;
+    sourceUnitCandidateId: string;
+    label: string;
+    sequenceOrder: number;
+    importanceTier: string;
+    confidenceScore: number;
+    sourceEvidenceIds: string[];
+  }>;
+  concepts: Array<{
+    graphConceptId: string;
+    sourceConceptCandidateId: string;
+    unitId: string | null;
+    label: string;
+    normalizedLabel: string;
+    sequenceOrder: number;
+    difficultyTier: string;
+    importanceTier: string;
+    assessmentRelevance: string;
+    coachabilityStatus: string;
+    canonicalTemplateId: string | null;
+    mappingConfidenceScore: number | null;
+    mergedSourceConceptCandidateIds: string[];
+    sourceEvidenceIds: string[];
+    confidenceScore: number;
+  }>;
+  edges: Array<{
+    graphEdgeId: string;
+    sourceDependencyCandidateId: string;
+    fromConceptId: string;
+    toConceptId: string;
+    edgeType: string;
+    confidenceScore: number;
+    sourceEvidenceIds: string[];
+  }>;
+};
+
+export type CoursePackExamBlueprint = {
+  examBlueprintId: string;
+  averageConfidenceScore: number;
+  areas: Array<{
+    blueprintAreaId: string;
+    label: string;
+    unitIds: string[];
+    conceptIds: string[];
+    priorityTier: string;
+    practiceNeed: string;
+    recurrenceSignal: string;
+    suggestedTimeSharePct: number;
+    confidenceScore: number;
+    reasonCodes: string[];
+    sourceEvidenceIds: string[];
+  }>;
+};
+
+export type CoursePackSupportLevelAssessment = {
+  supportLevelAssessmentId: string;
+  parseIntegrityScore: number;
+  structureConfidenceScore: number;
+  blueprintConfidenceScore: number;
+  packCompletenessScore: number;
+  coachableCoverageScore: number;
+  evaluationReliabilityScore: number;
+  candidateSupportLevel: CoursePackSupportLevel;
+};
+
+export type CoursePackExtraction = {
+  extractionSnapshotId: string;
+  coursePackId: string;
+  generatedAt: string;
+  coverageStatus: string;
+  averageConfidenceScore: number;
+  documentCount: number;
+  lowConfidenceItemCount: number;
+  warningCodes: string[];
+  units: CoursePackUnitCandidate[];
+  concepts: CoursePackConceptCandidate[];
+  dependencyCandidates: CoursePackDependencyCandidate[];
+  recurringThemes: CoursePackRecurringTheme[];
+  sourceEvidence: CoursePackSourceEvidence[];
+  unsupportedTopics: CoursePackUnsupportedTopic[];
+  courseGraph: CoursePackGraph | null;
+  examBlueprint: CoursePackExamBlueprint | null;
+  supportLevelAssessment: CoursePackSupportLevelAssessment | null;
+};
+
+export type CoursePackConfirmation = {
+  confirmationSnapshotId: string;
+  coursePackId: string;
+  extractionSnapshotId: string;
+  supportLevelCandidate: CoursePackSupportLevel;
+  status: string;
+  editedItemCount: number;
+  mergeActionCount: number;
+  lowConfidenceAcknowledged: boolean;
+  lowConfidenceIncludedCount: number;
+  confirmedAt: string;
+  activatedAt: string | null;
+  baselineExtractionGeneratedAt: string | null;
+  baselineBlueprintAreas: Array<{
+    blueprintAreaId: string;
+    label: string;
+    priorityTier: string;
+    practiceNeed: string;
+    recurrenceSignal: string;
+    suggestedTimeSharePct: number;
+    confidenceScore: number;
+  }>;
+  units: Array<{
+    confirmedUnitId: string;
+    sourceGraphUnitId: string | null;
+    sourceUnitCandidateId: string;
+    label: string;
+    sequenceOrder: number;
+    importanceTier: string;
+    confidenceScore: number;
+    isLowConfidence: boolean;
+    sourceEvidenceIds: string[];
+  }>;
+  concepts: Array<{
+    confirmedConceptId: string;
+    unitId: string | null;
+    sourceGraphConceptId: string | null;
+    sourceConceptCandidateId: string;
+    label: string;
+    normalizedLabel: string;
+    sequenceOrder: number;
+    difficultyTier: string;
+    importanceTier: string;
+    assessmentRelevance: string;
+    coachabilityStatus: string;
+    canonicalTemplateId: string | null;
+    engineConceptId: string | null;
+    mappingConfidenceScore: number | null;
+    confidenceScore: number;
+    isLowConfidence: boolean;
+    isExamImportant: boolean;
+    mergedSourceConceptCandidateIds: string[];
+    sourceEvidenceIds: string[];
+    referencedBlueprintAreaIds: string[];
+  }>;
+};
+
+export type CoursePackActivation = {
+  coursePackId: string;
+  learnerId: string;
+  courseTitle: string;
+  lifecycleState: CoursePackLifecycleState;
+  readinessState: CoursePackReadinessState;
+  supportLevelFinal: CoursePackSupportLevel | null;
+  isActive: boolean;
+  activeConfirmationSnapshotId: string | null;
+  activatedAt: string | null;
+  confirmationSnapshotId: string;
+  confirmationStatus: string;
+  compiledCoachPack: {
+    compiledCoachPackId: string;
+    supportLevel: CoursePackSupportLevel;
+    focusNormalizedConceptId: string | null;
+    focusEngineConceptId: string | null;
+    compilationStatus: string;
+    compiledAt: string;
+    normalizedConcepts: Array<{
+      normalizedConceptId: string;
+      sourceConfirmedConceptId: string;
+      displayLabel: string;
+      normalizedLabel: string;
+      sequenceOrder: number;
+      coachabilityStatus: string;
+      canonicalTemplateId: string | null;
+      engineConceptId: string | null;
+      priorityTier: string;
+      suggestedTimeSharePct: number;
+      isExamImportant: boolean;
+      sourceEvidenceIds: string[];
+    }>;
+  };
+  activeCourseContext: AdminActiveCourseContext;
+};
+
+export type CoursePackConfirmationPayload = {
+  confirmedUnitCandidateIds?: string[];
+  confirmedConceptCandidateIds?: string[];
+  unitEdits?: Array<{
+    sourceUnitCandidateId: string;
+    label: string;
+  }>;
+  conceptEdits?: Array<{
+    sourceConceptCandidateId: string;
+    label: string;
+  }>;
+  removedItemIds?: string[];
+  reorderedUnitIds?: string[];
+  mergeActions?: Array<{
+    targetSourceConceptCandidateId: string;
+    sourceConceptCandidateIds: string[];
+  }>;
+  examImportantConceptIds?: string[];
+  irrelevantItemIds?: string[];
+  acknowledgeLowConfidence?: boolean;
 };
 
 export type TelemetryEventName =
@@ -306,6 +951,8 @@ export type TelemetryEventRequest = {
   sessionItemId?: string;
   properties: Record<string, string | number | boolean | null>;
 };
+
+const RECENT_COURSE_PACK_STORAGE_KEY = "twincoach.coursePackId";
 
 export function isDailyPracticeSession(
   payload: SessionPayload,
@@ -352,6 +999,7 @@ export async function submitOnboarding(
 
   const payload = (await response.json()) as OnboardingResponse;
   setLearnerId(payload.learnerId);
+  persistOnboardingProfile(input);
 
   return payload;
 }
@@ -401,7 +1049,10 @@ export async function createOrResumeDailySession(): Promise<DailySessionPayload>
     );
   }
 
-  return (await response.json()) as DailySessionPayload;
+  const payload = (await response.json()) as DailySessionPayload;
+  persistRecentMode(payload.sessionMode);
+
+  return payload;
 }
 
 export async function submitAnswer(input: {
@@ -442,7 +1093,10 @@ export async function fetchTodaySummary(): Promise<ProgrammingState> {
     throw await createApiError(response, "Failed to load programming state");
   }
 
-  return (await response.json()) as ProgrammingState;
+  const payload = (await response.json()) as ProgrammingState;
+  persistProgrammingState(payload);
+
+  return payload;
 }
 
 export async function fetchSessionSummary(
@@ -458,7 +1112,10 @@ export async function fetchSessionSummary(
     throw await createApiError(response, "Failed to load session summary");
   }
 
-  return (await response.json()) as SessionSummary;
+  const payload = (await response.json()) as SessionSummary;
+  persistSessionSummary(payload);
+
+  return payload;
 }
 
 export async function recordTelemetryEvent(
@@ -530,6 +1187,386 @@ export async function fetchAdminSessionPreview(
   return response.json();
 }
 
+export async function ensureLearnerIdentity(): Promise<string> {
+  const learnerId = getLearnerId();
+
+  if (learnerId) {
+    return learnerId;
+  }
+
+  const bootState = await fetchBootState();
+  return bootState.learnerId;
+}
+
+export async function createCoursePack(input: {
+  courseTitle: string;
+  courseCode?: string;
+  institutionLabel?: string;
+  termLabel?: string;
+  primaryLanguage: string;
+}): Promise<CoursePackRecord> {
+  const learnerId = await ensureLearnerIdentity();
+  const response = await fetch(`${getApiBaseUrl()}/course-packs`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-learner-id": learnerId,
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    throw await createApiError(response, "Failed to create course pack");
+  }
+
+  return (await response.json()) as CoursePackRecord;
+}
+
+export async function fetchCoursePacks(): Promise<CoursePackRecord[]> {
+  const learnerId = await ensureLearnerIdentity();
+  const response = await fetch(`${getApiBaseUrl()}/course-packs`, {
+    cache: "no-store",
+    headers: {
+      "x-learner-id": learnerId,
+    },
+  });
+
+  if (!response.ok) {
+    throw await createApiError(response, "Failed to load course packs");
+  }
+
+  return (await response.json()) as CoursePackRecord[];
+}
+
+export async function fetchCoursePack(
+  coursePackId: string,
+): Promise<CoursePackRecord> {
+  const learnerId = await ensureLearnerIdentity();
+  const response = await fetch(`${getApiBaseUrl()}/course-packs/${coursePackId}`, {
+    cache: "no-store",
+    headers: {
+      "x-learner-id": learnerId,
+    },
+  });
+
+  if (!response.ok) {
+    throw await createApiError(response, "Failed to load course pack");
+  }
+
+  return (await response.json()) as CoursePackRecord;
+}
+
+export async function uploadCoursePackDocument(input: {
+  coursePackId: string;
+  file: File;
+  onProgress?: (progress: number) => void;
+}): Promise<CoursePackRecord> {
+  const learnerId = await ensureLearnerIdentity();
+
+  return new Promise<CoursePackRecord>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${getApiBaseUrl()}/course-packs/${input.coursePackId}/documents`);
+    xhr.setRequestHeader("x-learner-id", learnerId);
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable || !input.onProgress) {
+        return;
+      }
+
+      input.onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+    };
+
+    xhr.onreadystatechange = () => {
+      if (xhr.readyState !== XMLHttpRequest.DONE) {
+        return;
+      }
+
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText) as CoursePackRecord);
+          return;
+        } catch {
+          reject(new ApiError("Failed to parse upload response", xhr.status));
+          return;
+        }
+      }
+
+      try {
+        const payload = JSON.parse(xhr.responseText) as {
+          message?: string | string[];
+        };
+        const message = Array.isArray(payload.message)
+          ? payload.message.join(", ")
+          : payload.message;
+        reject(new ApiError(message ?? "Failed to upload course document", xhr.status));
+      } catch {
+        reject(new ApiError("Failed to upload course document", xhr.status));
+      }
+    };
+
+    xhr.onerror = () => {
+      reject(new ApiError("Failed to upload course document", 0));
+    };
+
+    const formData = new FormData();
+    formData.append("file", input.file);
+    xhr.send(formData);
+  });
+}
+
+export async function confirmCoursePackDocumentRole(input: {
+  coursePackId: string;
+  documentId: string;
+  confirmedRole: CoursePackDocumentRole;
+}): Promise<CoursePackRecord> {
+  const learnerId = await ensureLearnerIdentity();
+  const response = await fetch(
+    `${getApiBaseUrl()}/course-packs/${input.coursePackId}/documents/${input.documentId}/role`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-learner-id": learnerId,
+      },
+      body: JSON.stringify({
+        confirmedRole: input.confirmedRole,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw await createApiError(response, "Failed to save document role");
+  }
+
+  return (await response.json()) as CoursePackRecord;
+}
+
+export async function runCoursePackExtraction(
+  coursePackId: string,
+): Promise<CoursePackExtraction> {
+  const learnerId = await ensureLearnerIdentity();
+  const response = await fetch(
+    `${getApiBaseUrl()}/course-packs/${coursePackId}/extraction`,
+    {
+      method: "POST",
+      headers: {
+        "x-learner-id": learnerId,
+      },
+    },
+  );
+
+  if (!response.ok) {
+    throw await createApiError(response, "Failed to run course extraction");
+  }
+
+  return (await response.json()) as CoursePackExtraction;
+}
+
+export async function fetchLatestCoursePackExtraction(
+  coursePackId: string,
+): Promise<CoursePackExtraction | null> {
+  const learnerId = await ensureLearnerIdentity();
+  const response = await fetch(
+    `${getApiBaseUrl()}/course-packs/${coursePackId}/extraction`,
+    {
+      cache: "no-store",
+      headers: {
+        "x-learner-id": learnerId,
+      },
+    },
+  );
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw await createApiError(response, "Failed to load extraction review");
+  }
+
+  return (await response.json()) as CoursePackExtraction;
+}
+
+export async function createCoursePackConfirmation(input: {
+  coursePackId: string;
+  payload: CoursePackConfirmationPayload;
+}): Promise<CoursePackConfirmation> {
+  const learnerId = await ensureLearnerIdentity();
+  const response = await fetch(
+    `${getApiBaseUrl()}/course-packs/${input.coursePackId}/confirmations`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-learner-id": learnerId,
+      },
+      body: JSON.stringify(input.payload),
+    },
+  );
+
+  if (!response.ok) {
+    throw await createApiError(response, "Failed to save course review");
+  }
+
+  return (await response.json()) as CoursePackConfirmation;
+}
+
+export async function fetchLatestCoursePackConfirmation(
+  coursePackId: string,
+): Promise<CoursePackConfirmation | null> {
+  const learnerId = await ensureLearnerIdentity();
+  const response = await fetch(
+    `${getApiBaseUrl()}/course-packs/${coursePackId}/confirmations/latest`,
+    {
+      cache: "no-store",
+      headers: {
+        "x-learner-id": learnerId,
+      },
+    },
+  );
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw await createApiError(response, "Failed to load latest review");
+  }
+
+  return (await response.json()) as CoursePackConfirmation;
+}
+
+export async function activateCoursePack(input: {
+  coursePackId: string;
+  confirmationSnapshotId?: string;
+}): Promise<CoursePackActivation> {
+  const learnerId = await ensureLearnerIdentity();
+  const response = await fetch(
+    `${getApiBaseUrl()}/course-packs/${input.coursePackId}/activate`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-learner-id": learnerId,
+      },
+      body: JSON.stringify({
+        confirmationSnapshotId: input.confirmationSnapshotId,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw await createApiError(response, "Failed to activate course pack");
+  }
+
+  return (await response.json()) as CoursePackActivation;
+}
+
+export async function archiveCoursePack(
+  coursePackId: string,
+): Promise<CoursePackRecord> {
+  const learnerId = await ensureLearnerIdentity();
+  const response = await fetch(
+    `${getApiBaseUrl()}/course-packs/${coursePackId}/archive`,
+    {
+      method: "POST",
+      headers: {
+        "x-learner-id": learnerId,
+      },
+    },
+  );
+
+  if (!response.ok) {
+    throw await createApiError(response, "Failed to archive course pack");
+  }
+
+  return (await response.json()) as CoursePackRecord;
+}
+
+export async function replaceCoursePackDocument(input: {
+  coursePackId: string;
+  documentId: string;
+  file: File;
+  onProgress?: (progress: number) => void;
+}): Promise<CoursePackRecord> {
+  const learnerId = await ensureLearnerIdentity();
+
+  return new Promise<CoursePackRecord>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(
+      "POST",
+      `${getApiBaseUrl()}/course-packs/${input.coursePackId}/documents/${input.documentId}/replace`,
+    );
+    xhr.setRequestHeader("x-learner-id", learnerId);
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable || !input.onProgress) {
+        return;
+      }
+
+      input.onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+    };
+
+    xhr.onreadystatechange = () => {
+      if (xhr.readyState !== XMLHttpRequest.DONE) {
+        return;
+      }
+
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText) as CoursePackRecord);
+          return;
+        } catch {
+          reject(new ApiError("Failed to parse replace response", xhr.status));
+          return;
+        }
+      }
+
+      try {
+        const payload = JSON.parse(xhr.responseText) as {
+          message?: string | string[];
+        };
+        const message = Array.isArray(payload.message)
+          ? payload.message.join(", ")
+          : payload.message;
+        reject(new ApiError(message ?? "Failed to replace course document", xhr.status));
+      } catch {
+        reject(new ApiError("Failed to replace course document", xhr.status));
+      }
+    };
+
+    xhr.onerror = () => {
+      reject(new ApiError("Failed to replace course document", 0));
+    };
+
+    const formData = new FormData();
+    formData.append("file", input.file);
+    xhr.send(formData);
+  });
+}
+
+export async function removeCoursePackDocument(input: {
+  coursePackId: string;
+  documentId: string;
+}): Promise<CoursePackRecord> {
+  const learnerId = await ensureLearnerIdentity();
+  const response = await fetch(
+    `${getApiBaseUrl()}/course-packs/${input.coursePackId}/documents/${input.documentId}/remove`,
+    {
+      method: "POST",
+      headers: {
+        "x-learner-id": learnerId,
+      },
+    },
+  );
+
+  if (!response.ok) {
+    throw await createApiError(response, "Failed to remove course document");
+  }
+
+  return (await response.json()) as CoursePackRecord;
+}
+
 export async function deactivateAdminItem(questionItemId: string) {
   const adminKey = getAdminKey();
   const response = await fetch(`${getApiBaseUrl()}/admin/item/${questionItemId}/deactivate`, {
@@ -553,6 +1590,30 @@ export function getLearnerId() {
   }
 
   return window.localStorage.getItem(LEARNER_ID_STORAGE_KEY) ?? "";
+}
+
+export function getRecentCoursePackId() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return window.localStorage.getItem(RECENT_COURSE_PACK_STORAGE_KEY) ?? "";
+}
+
+export function setRecentCoursePackId(coursePackId: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(RECENT_COURSE_PACK_STORAGE_KEY, coursePackId);
+}
+
+export function clearRecentCoursePackId() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.removeItem(RECENT_COURSE_PACK_STORAGE_KEY);
 }
 
 function setLearnerId(learnerId: string) {

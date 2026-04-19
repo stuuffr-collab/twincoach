@@ -134,6 +134,147 @@ enum SummaryTemplateField {
   nextBestAction
 }
 
+enum CoursePackLifecycleState {
+  draft
+  ingesting
+  classifying
+  extracting
+  awaiting_confirmation
+  confirmed
+  active
+  archived
+  failed
+}
+
+enum CoursePackReadinessState {
+  awaiting_documents
+  awaiting_roles
+  awaiting_extraction
+  review_ready
+  activation_ready
+  blocked
+}
+
+enum CoursePackSupportLevel {
+  full_coach
+  guided_study
+  planning_review
+  not_ready
+}
+
+enum CoursePackDriftStatus {
+  clean
+  pending_refresh
+  review_required
+}
+
+enum CoursePackActiveContextState {
+  current
+  stale
+}
+
+enum SourceDocumentValidationStatus {
+  queued
+  valid
+  rejected
+}
+
+enum SourceDocumentParseStatus {
+  queued
+  validating
+  validated
+  parsing
+  parsed
+  partial
+  failed
+  blocked
+}
+
+enum SourceDocumentRole {
+  syllabus
+  lecture_notes
+  slides
+  past_exam
+  lab_sheet
+  assignment
+  reference
+  other
+  unknown
+}
+
+enum ExtractionCoverageStatus {
+  complete
+  partial
+  weak
+}
+
+enum ExtractionImportanceTier {
+  core
+  supporting
+  peripheral
+}
+
+enum ExtractionDifficultyTier {
+  low
+  medium
+  high
+  unknown
+}
+
+enum ExtractionAssessmentRelevanceTier {
+  high
+  medium
+  low
+  unknown
+}
+
+enum CoursePackCoachabilityStatus {
+  coachable
+  partially_supported
+  unsupported
+}
+
+enum CoursePackDependencyEdgeType {
+  prerequisite
+  supports
+  co_assessed
+}
+
+enum ExamBlueprintPriorityTier {
+  high
+  medium
+  low
+}
+
+enum ExamBlueprintPracticeNeedTier {
+  high
+  medium
+  low
+}
+
+enum ExamBlueprintRecurrenceSignal {
+  strong
+  moderate
+  weak
+  none
+}
+
+enum UnsupportedTopicHandling {
+  unsupported
+  partial_support
+}
+
+enum ConfirmationSnapshotStatus {
+  confirmed
+  superseded
+  activated
+}
+
+enum CompiledCoachPackStatus {
+  compiled
+  superseded
+}
+
 model Learner {
   id                 String                           @id @default(cuid())
   createdAt          DateTime                         @default(now())
@@ -145,7 +286,584 @@ model Learner {
   programmingProfile ProgrammingProfile?
   programmingPersona LearnerProgrammingPersona?
   conceptStates      LearnerProgrammingConceptState[]
+  activeCourseContext ActiveCourseContext?
+  compiledCoachConceptStates LearnerCompiledCoachConceptState[]
   telemetryEvents    TelemetryEvent[]
+  coursePacks        CoursePack[]
+  compiledCoachPacks CompiledCoachPack[]
+}
+
+model CoursePack {
+  id                         String                   @id @default(cuid())
+  learnerId                  String
+  courseTitle                String
+  courseCode                 String?
+  institutionLabel           String?
+  termLabel                  String?
+  primaryLanguage            String
+  lifecycleState             CoursePackLifecycleState @default(draft)
+  readinessState             CoursePackReadinessState @default(awaiting_documents)
+  supportLevelCandidate      CoursePackSupportLevel?
+  supportLevelFinal          CoursePackSupportLevel?
+  driftStatus                CoursePackDriftStatus    @default(clean)
+  driftReasonCodes           String[]                 @default([])
+  requiresReconfirmation     Boolean                  @default(false)
+  activeContextState         CoursePackActiveContextState @default(current)
+  isActive                   Boolean                  @default(false)
+  activeConfirmationSnapshotId String?
+  documentCount              Int                      @default(0)
+  confirmedUnitCount         Int                      @default(0)
+  confirmedConceptCount      Int                      @default(0)
+  unsupportedTopicCount      Int                      @default(0)
+  createdAt                  DateTime                 @default(now())
+  updatedAt                  DateTime                 @updatedAt
+  confirmedAt                DateTime?
+  activatedAt                DateTime?
+  archivedAt                 DateTime?
+
+  learner         Learner           @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  sourceDocuments SourceDocument[]
+  extractionSnapshots ExtractionSnapshot[]
+  courseGraphs    CourseGraph[]
+  examBlueprints  ExamBlueprint[]
+  supportLevelAssessments SupportLevelAssessment[]
+  confirmationSnapshots ConfirmationSnapshot[]
+  compiledCoachPacks CompiledCoachPack[]
+  activeCourseContexts ActiveCourseContext[]
+  activeSessions Session[] @relation("SessionActiveCoursePack")
+  compiledCoachConceptStates LearnerCompiledCoachConceptState[]
+
+  @@index([learnerId])
+  @@index([learnerId, isActive])
+  @@index([lifecycleState])
+  @@index([readinessState])
+  @@index([driftStatus])
+}
+
+model SourceDocument {
+  id                    String                         @id @default(cuid())
+  coursePackId          String
+  storageKey            String
+  originalFilename      String
+  mimeType              String
+  byteSize              Int
+  pageCount             Int?
+  checksumSha256        String
+  uploadedAt            DateTime                       @default(now())
+  validationStatus      SourceDocumentValidationStatus @default(queued)
+  suggestedRole         SourceDocumentRole?
+  confirmedRole         SourceDocumentRole?
+  roleConfidenceScore   Float?
+  roleReasonCodes       String[]                       @default([])
+  alternateRoleCandidates Json?
+  parseStatus           SourceDocumentParseStatus      @default(queued)
+  parseConfidenceScore  Float?
+  hasSelectableText     Boolean?
+  textCoverageRatio     Float?
+  textPreview           String?
+  warningCodes          String[]                       @default([])
+  blockingIssueCode     String?
+  removedAt             DateTime?
+  removedReasonCode     String?
+  createdAt             DateTime                       @default(now())
+  updatedAt             DateTime                       @updatedAt
+
+  coursePack CoursePack @relation(fields: [coursePackId], references: [id], onDelete: Cascade)
+  sourceEvidences SourceEvidence[]
+
+  @@unique([coursePackId, checksumSha256])
+  @@index([coursePackId])
+  @@index([suggestedRole])
+  @@index([confirmedRole])
+  @@index([validationStatus])
+  @@index([parseStatus])
+  @@index([removedAt])
+}
+
+model ExtractionSnapshot {
+  id                    String                   @id @default(cuid())
+  coursePackId          String
+  generatedAt           DateTime                 @default(now())
+  coverageStatus        ExtractionCoverageStatus
+  averageConfidenceScore Float
+  documentCount         Int
+  lowConfidenceItemCount Int                     @default(0)
+  warningCodes          String[]                 @default([])
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  coursePack           CoursePack                    @relation(fields: [coursePackId], references: [id], onDelete: Cascade)
+  units                ExtractedUnitCandidate[]
+  concepts             ExtractedConceptCandidate[]
+  dependencyCandidates ExtractedDependencyCandidate[]
+  recurringThemes      RecurringTheme[]
+  sourceEvidences      SourceEvidence[]
+  unsupportedTopics    UnsupportedTopic[]
+  courseGraph          CourseGraph?
+  examBlueprint        ExamBlueprint?
+  supportLevelAssessment SupportLevelAssessment?
+  confirmationSnapshots ConfirmationSnapshot[]
+
+  @@index([coursePackId])
+  @@index([generatedAt])
+}
+
+model SourceEvidence {
+  id                   String              @id @default(cuid())
+  extractionSnapshotId String
+  documentId           String
+  pageStart            Int
+  pageEnd              Int
+  evidenceType         String
+  snippet              String
+  createdAt            DateTime            @default(now())
+
+  extractionSnapshot ExtractionSnapshot @relation(fields: [extractionSnapshotId], references: [id], onDelete: Cascade)
+  document           SourceDocument      @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([extractionSnapshotId])
+  @@index([documentId])
+}
+
+model ExtractedUnitCandidate {
+  id                    String                    @id @default(cuid())
+  extractionSnapshotId  String
+  rawTitle              String
+  normalizedTitle       String
+  sequenceOrderCandidate Int
+  importanceTierCandidate ExtractionImportanceTier
+  confidenceScore       Float
+  sourceEvidenceIds     String[]                  @default([])
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+
+  extractionSnapshot ExtractionSnapshot @relation(fields: [extractionSnapshotId], references: [id], onDelete: Cascade)
+  concepts           ExtractedConceptCandidate[]
+  graphUnits         CourseGraphUnit[]
+  confirmedUnits     ConfirmedCoursePackUnit[]
+
+  @@index([extractionSnapshotId])
+}
+
+model ExtractedConceptCandidate {
+  id                         String                           @id @default(cuid())
+  extractionSnapshotId       String
+  unitCandidateId            String?
+  rawLabel                   String
+  learnerLabelCandidate      String
+  sequenceOrderCandidate     Int
+  difficultyTierCandidate    ExtractionDifficultyTier
+  importanceTierCandidate    ExtractionImportanceTier
+  assessmentRelevanceCandidate ExtractionAssessmentRelevanceTier
+  canonicalMappingCandidate  String?
+  mappingConfidenceScore     Float?
+  coachabilityStatus         CoursePackCoachabilityStatus
+  sourceEvidenceIds          String[]                         @default([])
+  createdAt                  DateTime                         @default(now())
+  updatedAt                  DateTime                         @updatedAt
+
+  extractionSnapshot ExtractionSnapshot      @relation(fields: [extractionSnapshotId], references: [id], onDelete: Cascade)
+  unitCandidate      ExtractedUnitCandidate? @relation(fields: [unitCandidateId], references: [id], onDelete: SetNull)
+  outgoingDependencies ExtractedDependencyCandidate[] @relation("DependencyFromConcept")
+  incomingDependencies ExtractedDependencyCandidate[] @relation("DependencyToConcept")
+  graphConcepts       CourseGraphConcept[]
+  confirmedConcepts   ConfirmedCoursePackConcept[]
+
+  @@index([extractionSnapshotId])
+  @@index([unitCandidateId])
+  @@index([coachabilityStatus])
+}
+
+model ExtractedDependencyCandidate {
+  id                   String                       @id @default(cuid())
+  extractionSnapshotId String
+  fromConceptCandidateId String
+  toConceptCandidateId String
+  edgeType             CoursePackDependencyEdgeType
+  confidenceScore      Float
+  sourceEvidenceIds    String[]                     @default([])
+  createdAt            DateTime                     @default(now())
+  updatedAt            DateTime                     @updatedAt
+
+  extractionSnapshot  ExtractionSnapshot       @relation(fields: [extractionSnapshotId], references: [id], onDelete: Cascade)
+  fromConceptCandidate ExtractedConceptCandidate @relation("DependencyFromConcept", fields: [fromConceptCandidateId], references: [id], onDelete: Cascade)
+  toConceptCandidate   ExtractedConceptCandidate @relation("DependencyToConcept", fields: [toConceptCandidateId], references: [id], onDelete: Cascade)
+  graphEdges          CourseGraphEdge[]
+
+  @@index([extractionSnapshotId])
+  @@index([fromConceptCandidateId])
+  @@index([toConceptCandidateId])
+}
+
+model RecurringTheme {
+  id                    String             @id @default(cuid())
+  extractionSnapshotId  String
+  label                 String
+  frequencyScore        Float
+  relatedConceptCandidateIds String[]      @default([])
+  sourceEvidenceIds     String[]           @default([])
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  extractionSnapshot ExtractionSnapshot @relation(fields: [extractionSnapshotId], references: [id], onDelete: Cascade)
+
+  @@index([extractionSnapshotId])
+}
+
+model UnsupportedTopic {
+  id                   String                  @id @default(cuid())
+  extractionSnapshotId String
+  rawLabel             String
+  reasonCode           String
+  sourceEvidenceIds    String[]                @default([])
+  suggestedHandling    UnsupportedTopicHandling
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+
+  extractionSnapshot ExtractionSnapshot @relation(fields: [extractionSnapshotId], references: [id], onDelete: Cascade)
+
+  @@index([extractionSnapshotId])
+}
+
+model CourseGraph {
+  id                    String          @id @default(cuid())
+  coursePackId          String
+  extractionSnapshotId  String          @unique
+  version               Int
+  averageConfidenceScore Float
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  coursePack         CoursePack         @relation(fields: [coursePackId], references: [id], onDelete: Cascade)
+  extractionSnapshot ExtractionSnapshot @relation(fields: [extractionSnapshotId], references: [id], onDelete: Cascade)
+  units              CourseGraphUnit[]
+  concepts           CourseGraphConcept[]
+  edges              CourseGraphEdge[]
+
+  @@index([coursePackId])
+}
+
+model CourseGraphUnit {
+  id                    String                   @id @default(cuid())
+  courseGraphId         String
+  sourceUnitCandidateId String
+  label                 String
+  sequenceOrder         Int
+  importanceTier        ExtractionImportanceTier
+  confidenceScore       Float
+  sourceEvidenceIds     String[]                 @default([])
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  courseGraph          CourseGraph           @relation(fields: [courseGraphId], references: [id], onDelete: Cascade)
+  sourceUnitCandidate  ExtractedUnitCandidate @relation(fields: [sourceUnitCandidateId], references: [id], onDelete: Cascade)
+  concepts             CourseGraphConcept[]
+  confirmedUnits       ConfirmedCoursePackUnit[]
+
+  @@index([courseGraphId])
+  @@index([sourceUnitCandidateId])
+}
+
+model CourseGraphConcept {
+  id                     String                           @id @default(cuid())
+  courseGraphId          String
+  sourceConceptCandidateId String
+  unitId                 String?
+  label                  String
+  normalizedLabel        String
+  sequenceOrder          Int
+  difficultyTier         ExtractionDifficultyTier
+  importanceTier         ExtractionImportanceTier
+  assessmentRelevance    ExtractionAssessmentRelevanceTier
+  coachabilityStatus     CoursePackCoachabilityStatus
+  canonicalTemplateId    String?
+  mappingConfidenceScore Float?
+  mergedSourceConceptCandidateIds String[]               @default([])
+  sourceEvidenceIds      String[]                        @default([])
+  confidenceScore        Float
+  createdAt              DateTime                        @default(now())
+  updatedAt              DateTime                        @updatedAt
+
+  courseGraph            CourseGraph             @relation(fields: [courseGraphId], references: [id], onDelete: Cascade)
+  sourceConceptCandidate ExtractedConceptCandidate @relation(fields: [sourceConceptCandidateId], references: [id], onDelete: Cascade)
+  unit                  CourseGraphUnit?         @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  outgoingEdges         CourseGraphEdge[]        @relation("GraphEdgeFromConcept")
+  incomingEdges         CourseGraphEdge[]        @relation("GraphEdgeToConcept")
+  confirmedConcepts     ConfirmedCoursePackConcept[]
+
+  @@index([courseGraphId])
+  @@index([sourceConceptCandidateId])
+  @@index([unitId])
+  @@index([coachabilityStatus])
+}
+
+model CourseGraphEdge {
+  id                        String                       @id @default(cuid())
+  courseGraphId             String
+  sourceDependencyCandidateId String
+  fromConceptId             String
+  toConceptId               String
+  edgeType                  CoursePackDependencyEdgeType
+  confidenceScore           Float
+  sourceEvidenceIds         String[]                     @default([])
+  createdAt                 DateTime                     @default(now())
+  updatedAt                 DateTime                     @updatedAt
+
+  courseGraph               CourseGraph          @relation(fields: [courseGraphId], references: [id], onDelete: Cascade)
+  sourceDependencyCandidate ExtractedDependencyCandidate @relation(fields: [sourceDependencyCandidateId], references: [id], onDelete: Cascade)
+  fromConcept              CourseGraphConcept    @relation("GraphEdgeFromConcept", fields: [fromConceptId], references: [id], onDelete: Cascade)
+  toConcept                CourseGraphConcept    @relation("GraphEdgeToConcept", fields: [toConceptId], references: [id], onDelete: Cascade)
+
+  @@index([courseGraphId])
+  @@index([sourceDependencyCandidateId])
+  @@index([fromConceptId])
+  @@index([toConceptId])
+}
+
+model ExamBlueprint {
+  id                    String          @id @default(cuid())
+  coursePackId          String
+  extractionSnapshotId  String          @unique
+  generatedAt           DateTime        @default(now())
+  averageConfidenceScore Float
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  coursePack         CoursePack         @relation(fields: [coursePackId], references: [id], onDelete: Cascade)
+  extractionSnapshot ExtractionSnapshot @relation(fields: [extractionSnapshotId], references: [id], onDelete: Cascade)
+  areas              ExamBlueprintArea[]
+
+  @@index([coursePackId])
+}
+
+model ExamBlueprintArea {
+  id                    String                     @id @default(cuid())
+  examBlueprintId       String
+  label                 String
+  unitIds               String[]                   @default([])
+  conceptIds            String[]                   @default([])
+  priorityTier          ExamBlueprintPriorityTier
+  practiceNeed          ExamBlueprintPracticeNeedTier
+  recurrenceSignal      ExamBlueprintRecurrenceSignal
+  suggestedTimeSharePct Int
+  confidenceScore       Float
+  reasonCodes           String[]                   @default([])
+  sourceEvidenceIds     String[]                   @default([])
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+
+  examBlueprint ExamBlueprint @relation(fields: [examBlueprintId], references: [id], onDelete: Cascade)
+
+  @@index([examBlueprintId])
+}
+
+model SupportLevelAssessment {
+  id                     String                 @id @default(cuid())
+  coursePackId           String
+  extractionSnapshotId   String                 @unique
+  parseIntegrityScore    Float
+  structureConfidenceScore Float
+  blueprintConfidenceScore Float
+  packCompletenessScore  Float
+  coachableCoverageScore Float
+  evaluationReliabilityScore Float
+  candidateSupportLevel  CoursePackSupportLevel
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+
+  coursePack         CoursePack         @relation(fields: [coursePackId], references: [id], onDelete: Cascade)
+  extractionSnapshot ExtractionSnapshot @relation(fields: [extractionSnapshotId], references: [id], onDelete: Cascade)
+
+  @@index([coursePackId])
+  @@index([candidateSupportLevel])
+}
+
+model ConfirmationSnapshot {
+  id                         String                     @id @default(cuid())
+  coursePackId               String
+  extractionSnapshotId       String
+  supportLevelCandidate      CoursePackSupportLevel
+  status                     ConfirmationSnapshotStatus @default(confirmed)
+  editedItemCount            Int                        @default(0)
+  mergeActionCount           Int                        @default(0)
+  lowConfidenceAcknowledged  Boolean                    @default(false)
+  lowConfidenceIncludedCount Int                        @default(0)
+  createdAt                  DateTime                   @default(now())
+  updatedAt                  DateTime                   @updatedAt
+  confirmedAt                DateTime                   @default(now())
+  activatedAt                DateTime?
+
+  coursePack         CoursePack         @relation(fields: [coursePackId], references: [id], onDelete: Cascade)
+  extractionSnapshot ExtractionSnapshot @relation(fields: [extractionSnapshotId], references: [id], onDelete: Cascade)
+  units              ConfirmedCoursePackUnit[]
+  concepts           ConfirmedCoursePackConcept[]
+  compiledCoachPack  CompiledCoachPack?
+
+  @@index([coursePackId])
+  @@index([extractionSnapshotId])
+  @@index([status])
+}
+
+model ConfirmedCoursePackUnit {
+  id                     String                    @id @default(cuid())
+  confirmationSnapshotId String
+  sourceGraphUnitId      String?
+  sourceUnitCandidateId  String
+  label                  String
+  sequenceOrder          Int
+  importanceTier         ExtractionImportanceTier
+  confidenceScore        Float
+  isLowConfidence        Boolean                   @default(false)
+  sourceEvidenceIds      String[]                  @default([])
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+
+  confirmationSnapshot ConfirmationSnapshot  @relation(fields: [confirmationSnapshotId], references: [id], onDelete: Cascade)
+  sourceGraphUnit      CourseGraphUnit?       @relation(fields: [sourceGraphUnitId], references: [id], onDelete: SetNull)
+  sourceUnitCandidate  ExtractedUnitCandidate @relation(fields: [sourceUnitCandidateId], references: [id], onDelete: Cascade)
+  concepts             ConfirmedCoursePackConcept[]
+
+  @@index([confirmationSnapshotId])
+  @@index([sourceGraphUnitId])
+  @@index([sourceUnitCandidateId])
+}
+
+model ConfirmedCoursePackConcept {
+  id                             String                           @id @default(cuid())
+  confirmationSnapshotId         String
+  unitId                         String?
+  sourceGraphConceptId           String?
+  sourceConceptCandidateId       String
+  label                          String
+  normalizedLabel                String
+  sequenceOrder                  Int
+  difficultyTier                 ExtractionDifficultyTier
+  importanceTier                 ExtractionImportanceTier
+  assessmentRelevance            ExtractionAssessmentRelevanceTier
+  coachabilityStatus             CoursePackCoachabilityStatus
+  canonicalTemplateId            String?
+  engineConceptId                String?
+  mappingConfidenceScore         Float?
+  confidenceScore                Float
+  isLowConfidence                Boolean                         @default(false)
+  isExamImportant                Boolean                         @default(false)
+  mergedSourceConceptCandidateIds String[]                       @default([])
+  sourceEvidenceIds              String[]                        @default([])
+  referencedBlueprintAreaIds     String[]                        @default([])
+  createdAt                      DateTime                        @default(now())
+  updatedAt                      DateTime                        @updatedAt
+
+  confirmationSnapshot   ConfirmationSnapshot      @relation(fields: [confirmationSnapshotId], references: [id], onDelete: Cascade)
+  unit                   ConfirmedCoursePackUnit?  @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  sourceGraphConcept     CourseGraphConcept?       @relation(fields: [sourceGraphConceptId], references: [id], onDelete: SetNull)
+  sourceConceptCandidate ExtractedConceptCandidate @relation(fields: [sourceConceptCandidateId], references: [id], onDelete: Cascade)
+  compiledCoachConcepts  CompiledCoachConcept[]
+
+  @@index([confirmationSnapshotId])
+  @@index([unitId])
+  @@index([sourceGraphConceptId])
+  @@index([sourceConceptCandidateId])
+  @@index([engineConceptId])
+}
+
+model CompiledCoachPack {
+  id                     String                  @id @default(cuid())
+  coursePackId           String
+  learnerId              String
+  confirmationSnapshotId String                  @unique
+  supportLevel           CoursePackSupportLevel
+  focusCompiledConceptId String?
+  focusEngineConceptId   String?
+  compilationStatus      CompiledCoachPackStatus @default(compiled)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  compiledAt             DateTime                @default(now())
+
+  coursePack           CoursePack            @relation(fields: [coursePackId], references: [id], onDelete: Cascade)
+  learner              Learner               @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  confirmationSnapshot ConfirmationSnapshot  @relation(fields: [confirmationSnapshotId], references: [id], onDelete: Cascade)
+  focusCompiledConcept CompiledCoachConcept? @relation("CompiledCoachPackFocusConcept", fields: [focusCompiledConceptId], references: [id], onDelete: SetNull)
+  concepts             CompiledCoachConcept[]
+  activeContexts       ActiveCourseContext[]
+
+  @@index([coursePackId])
+  @@index([learnerId])
+  @@index([supportLevel])
+}
+
+model CompiledCoachConcept {
+  id                      String                    @id @default(cuid())
+  compiledCoachPackId     String
+  sourceConfirmedConceptId String
+  displayLabel            String
+  normalizedLabel         String
+  sequenceOrder           Int
+  coachabilityStatus      CoursePackCoachabilityStatus
+  canonicalTemplateId     String?
+  engineConceptId         String?
+  priorityTier            ExamBlueprintPriorityTier
+  suggestedTimeSharePct   Int
+  isExamImportant         Boolean                   @default(false)
+  sourceEvidenceIds       String[]                  @default([])
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+
+  compiledCoachPack       CompiledCoachPack           @relation(fields: [compiledCoachPackId], references: [id], onDelete: Cascade)
+  sourceConfirmedConcept  ConfirmedCoursePackConcept  @relation(fields: [sourceConfirmedConceptId], references: [id], onDelete: Cascade)
+  focusForCompiledPacks   CompiledCoachPack[]         @relation("CompiledCoachPackFocusConcept")
+  activeContexts          ActiveCourseContext[]       @relation("ActiveContextFocusConcept")
+  learnerStates           LearnerCompiledCoachConceptState[]
+  sessions                Session[]
+
+  @@index([compiledCoachPackId])
+  @@index([sourceConfirmedConceptId])
+  @@index([engineConceptId])
+}
+
+model ActiveCourseContext {
+  id                     String                 @id @default(cuid())
+  learnerId              String                 @unique
+  coursePackId           String
+  compiledCoachPackId    String
+  confirmationSnapshotId String
+  supportLevel           CoursePackSupportLevel
+  courseTitle            String
+  focusCompiledConceptId String?
+  focusEngineConceptId   String?
+  refreshFollowThroughConceptId String?
+  refreshResolvedConceptId String?
+  recurringResolvedConceptId String?
+  recurringResolvedAt      DateTime?
+  activatedAt            DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+
+  learner              Learner               @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  coursePack           CoursePack            @relation(fields: [coursePackId], references: [id], onDelete: Cascade)
+  compiledCoachPack    CompiledCoachPack     @relation(fields: [compiledCoachPackId], references: [id], onDelete: Cascade)
+  focusCompiledConcept CompiledCoachConcept? @relation("ActiveContextFocusConcept", fields: [focusCompiledConceptId], references: [id], onDelete: SetNull)
+
+  @@index([coursePackId])
+  @@index([compiledCoachPackId])
+}
+
+model LearnerCompiledCoachConceptState {
+  id                     String               @id @default(cuid())
+  learnerId              String
+  coursePackId           String
+  compiledCoachConceptId String
+  masteryState           MasteryState         @default(unknown)
+  recentErrorTag         ProgrammingErrorTag?
+  lastObservedAt         DateTime?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+
+  learner              Learner              @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  coursePack           CoursePack           @relation(fields: [coursePackId], references: [id], onDelete: Cascade)
+  compiledCoachConcept CompiledCoachConcept @relation(fields: [compiledCoachConceptId], references: [id], onDelete: Cascade)
+
+  @@unique([learnerId, coursePackId, compiledCoachConceptId])
+  @@index([coursePackId])
+  @@index([compiledCoachConceptId])
 }
 
 model ExamCycle {
@@ -303,6 +1021,12 @@ model Session {
   sessionType     SessionType
   sessionMode     SessionMode?
   focusConceptId  String?
+  activeCoursePackId String?
+  focusCompiledConceptId String?
+  refreshSequence Int?
+  recurringDecisionType String?
+  recurringSourceConceptId String?
+  recurringSourceConceptLabel String?
   rationaleCode   String?
   status          SessionStatus @default(generated)
   currentIndex    Int           @default(1)
@@ -315,12 +1039,16 @@ model Session {
   learner      Learner             @relation(fields: [learnerId], references: [id], onDelete: Cascade)
   examCycle    ExamCycle           @relation(fields: [examCycleId], references: [id], onDelete: Cascade)
   focusConcept ProgrammingConcept? @relation("SessionFocusConcept", fields: [focusConceptId], references: [id], onDelete: SetNull)
+  activeCoursePack CoursePack?     @relation("SessionActiveCoursePack", fields: [activeCoursePackId], references: [id], onDelete: SetNull)
+  focusCompiledConcept CompiledCoachConcept? @relation(fields: [focusCompiledConceptId], references: [id], onDelete: SetNull)
   sessionItems SessionItem[]
   attempts     Attempt[]
 
   @@index([learnerId])
   @@index([examCycleId])
   @@index([focusConceptId])
+  @@index([activeCoursePackId])
+  @@index([focusCompiledConceptId])
 }
 
 model SessionItem {

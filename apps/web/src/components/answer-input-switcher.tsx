@@ -21,9 +21,7 @@ export function AnswerInputSwitcher({
 }: AnswerInputSwitcherProps) {
   if (answerFormat === "short_text") {
     const promptLabel =
-      taskType === "code_completion"
-        ? "Complete the missing code"
-        : "Enter one short answer";
+      taskType === "code_completion" ? "أكمل الجزء الناقص" : "اكتب إجابة قصيرة";
 
     return (
       <div className="flex flex-col gap-2">
@@ -31,11 +29,10 @@ export function AnswerInputSwitcher({
         <input
           autoCapitalize="off"
           autoCorrect="off"
-          className="min-h-14 w-full rounded-2xl border border-[var(--border)] bg-white px-4 py-3 font-mono text-base text-[var(--text)] shadow-sm placeholder:text-[var(--text-muted)]"
+          className="min-h-14 w-full rounded-2xl border border-[var(--border)] bg-white px-4 py-3 text-left font-mono text-base text-[var(--text)] shadow-sm transition duration-200 focus:border-[var(--primary)] focus:outline-none focus:ring-4 focus:ring-[rgba(30,94,255,0.12)] placeholder:text-[var(--text-muted)]"
+          dir="ltr"
           onChange={(event) => onChange(event.target.value)}
-          placeholder={
-            taskType === "code_completion" ? "Type the missing code" : "Type your answer"
-          }
+          placeholder={taskType === "code_completion" ? "اكتب الجزء الناقص" : "اكتب إجابتك"}
           spellCheck={false}
           type="text"
           value={value}
@@ -46,7 +43,7 @@ export function AnswerInputSwitcher({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="text-sm font-medium text-[var(--text)]">Choose one answer</div>
+      <div className="text-sm font-medium text-[var(--text)]">اختر الإجابة الأقرب</div>
       {choices.map((choice) => {
         const isSelected = value === choice.choiceId;
 
@@ -54,23 +51,23 @@ export function AnswerInputSwitcher({
           <button
             key={choice.choiceId}
             aria-pressed={isSelected}
-            className={`min-h-14 rounded-2xl border px-4 py-3 text-left text-base font-medium transition ${
+            className={`min-h-14 rounded-2xl border px-4 py-3 text-right text-base font-medium transition duration-200 ${
               isSelected
-                ? "border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--text)] shadow-sm"
-                : "border-[var(--border)] bg-white text-[var(--text)] shadow-sm"
+                ? "scale-[1.01] border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--text)] shadow-[0_14px_28px_rgba(30,94,255,0.12)]"
+                : "border-[var(--border)] bg-white text-[var(--text)] shadow-sm hover:-translate-y-0.5 hover:shadow-md"
             }`}
             onClick={() => onChange(choice.choiceId)}
             type="button"
           >
             <div className="flex items-start gap-3">
               <span
-                className={`mt-1 h-5 w-5 rounded-full border ${
+                className={`mt-1 h-5 w-5 shrink-0 rounded-full border transition ${
                   isSelected
                     ? "border-[var(--primary)] bg-[var(--primary)]"
                     : "border-[var(--border)] bg-white"
                 }`}
               />
-              <span>{choice.label}</span>
+              <span dir="auto">{choice.label}</span>
             </div>
           </button>
         );

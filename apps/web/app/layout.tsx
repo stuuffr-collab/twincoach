@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "TwinCoach",
-  description: "Week 1 student app shell",
+  description: "رفيق عربي هادئ لتعلّم البرمجة خطوة بخطوة",
 };
 
 export default function RootLayout({
@@ -12,8 +12,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body suppressHydrationWarning>{children}</body>
+    <html lang="ar">
+      <body className="bg-[var(--background)]" suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }
