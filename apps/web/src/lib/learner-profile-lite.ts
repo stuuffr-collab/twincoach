@@ -1,4 +1,5 @@
 import type {
+  ActiveCourseContext,
   OnboardingPayload,
   ProgrammingState,
   SessionMode,
@@ -16,6 +17,8 @@ type StoredSummary = {
   sessionId: string;
   sessionMode: SessionMode | null;
   focusConceptLabel: string;
+  focusCompiledConceptId: string | null;
+  activeCourseContext: ActiveCourseContext | null;
   whatImproved: SessionSummary["whatImproved"];
   whatNeedsSupport: SessionSummary["whatNeedsSupport"];
   studyPatternObserved: SessionSummary["studyPatternObserved"];
@@ -28,11 +31,13 @@ type StoredSummary = {
 
 type StoredTodayState = {
   focusConceptLabel: string;
+  focusCompiledConceptId: string | null;
   sessionMode: SessionMode;
   sessionModeLabel: string;
   programmingStateLabel: string;
   rationaleText: string;
   nextStepText: string;
+  activeCourseContext: ActiveCourseContext | null;
   capturedAt: string;
 };
 
@@ -85,6 +90,7 @@ function writeStore(store: LearnerProfileLiteStore) {
   }
 
   window.localStorage.setItem(PROFILE_LITE_STORAGE_KEY, JSON.stringify(store));
+  window.dispatchEvent(new CustomEvent("twincoach:profile-lite-updated"));
 }
 
 function pushRecentMode(recentModes: StoredMode[], mode: SessionMode) {
@@ -111,11 +117,13 @@ export function persistProgrammingState(summary: ProgrammingState) {
     ...current,
     latestProgrammingState: {
       focusConceptLabel: summary.focusConceptLabel,
+      focusCompiledConceptId: summary.focusCompiledConceptId,
       sessionMode: summary.sessionMode,
       sessionModeLabel: summary.sessionModeLabel,
       programmingStateLabel: summary.programmingStateLabel,
       rationaleText: summary.rationaleText,
       nextStepText: summary.nextStepText,
+      activeCourseContext: summary.activeCourseContext,
       capturedAt: new Date().toISOString(),
     },
     recentModes: pushRecentMode(current.recentModes, summary.sessionMode),
@@ -142,6 +150,8 @@ export function persistSessionSummary(summary: SessionSummary) {
       sessionId: summary.sessionId,
       sessionMode: summary.sessionMode,
       focusConceptLabel: summary.focusConceptLabel,
+      focusCompiledConceptId: summary.focusCompiledConceptId,
+      activeCourseContext: summary.activeCourseContext,
       whatImproved: summary.whatImproved,
       whatNeedsSupport: summary.whatNeedsSupport,
       studyPatternObserved: summary.studyPatternObserved,

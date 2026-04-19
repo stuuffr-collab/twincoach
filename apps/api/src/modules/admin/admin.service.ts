@@ -4,7 +4,11 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
-import { SessionStatus, type SessionMode } from "@prisma/client";
+import {
+  CoursePackSupportLevel,
+  SessionStatus,
+  type SessionMode,
+} from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CurriculumService } from "../curriculum/curriculum.service";
 import { deriveProgrammingSummaryCodes } from "../session/programming-summary.util";
@@ -29,6 +33,12 @@ export class AdminService {
       include: {
         learner: {
           include: {
+            activeCourseContext: {
+              include: {
+                coursePack: true,
+                focusCompiledConcept: true,
+              },
+            },
             programmingPersona: {
               include: {
                 focusConcept: true,
@@ -82,6 +92,9 @@ export class AdminService {
           profile.learner.programmingPersona?.focusConcept?.learnerLabel ??
           latestDailySession?.focusConcept?.learnerLabel ??
           "",
+        activeCourseContext: this.mapActiveCourseContextSummary(
+          profile.learner.activeCourseContext,
+        ),
         sessionMode:
           activeDailySession?.sessionMode ?? latestDailySession?.sessionMode ?? null,
         sessionMomentumState:
@@ -104,9 +117,70 @@ export class AdminService {
       where: { id: learnerId },
       include: {
         programmingProfile: true,
+        activeCourseContext: {
+          include: {
+            coursePack: true,
+            focusCompiledConcept: true,
+          },
+        },
         programmingPersona: {
           include: {
             focusConcept: true,
+          },
+        },
+        coursePacks: {
+          orderBy: {
+            updatedAt: "desc",
+          },
+          include: {
+            sourceDocuments: {
+              orderBy: {
+                uploadedAt: "desc",
+              },
+            },
+            extractionSnapshots: {
+              orderBy: {
+                generatedAt: "desc",
+              },
+              take: 1,
+              include: {
+                units: true,
+                concepts: true,
+                dependencyCandidates: true,
+                recurringThemes: true,
+                unsupportedTopics: true,
+                supportLevelAssessment: true,
+              },
+            },
+            confirmationSnapshots: {
+              orderBy: {
+                createdAt: "desc",
+              },
+              take: 1,
+              include: {
+                units: true,
+                concepts: true,
+              },
+            },
+            compiledCoachPacks: {
+              orderBy: {
+                compiledAt: "desc",
+              },
+              take: 1,
+              include: {
+                concepts: true,
+                focusCompiledConcept: true,
+              },
+            },
+            activeCourseContexts: {
+              orderBy: {
+                updatedAt: "desc",
+              },
+              take: 1,
+              include: {
+                focusCompiledConcept: true,
+              },
+            },
           },
         },
       },
@@ -184,6 +258,9 @@ export class AdminService {
 
     return {
       learnerId,
+      activeCourseContext: this.mapActiveCourseContextSummary(
+        learner.activeCourseContext,
+      ),
       onboardingProfile: learner.programmingProfile
         ? {
             priorProgrammingExposure:
@@ -216,6 +293,129 @@ export class AdminService {
       },
       activeDiagnosticSessionId: activeDiagnosticSession?.id ?? "",
       activeDailySessionId: activeDailySession?.id ?? "",
+      coursePacks: learner.coursePacks.map((coursePack) => {
+        const latestExtraction = coursePack.extractionSnapshots[0] ?? null;
+        const latestConfirmation = coursePack.confirmationSnapshots[0] ?? null;
+        const latestCompiledCoachPack = coursePack.compiledCoachPacks[0] ?? null;
+        const latestActiveContext = coursePack.activeCourseContexts[0] ?? null;
+
+        return {
+          coursePackId: coursePack.id,
+          courseTitle: coursePack.courseTitle,
+          courseCode: coursePack.courseCode,
+          institutionLabel: coursePack.institutionLabel,
+          termLabel: coursePack.termLabel,
+          lifecycleState: coursePack.lifecycleState,
+          readinessState: coursePack.readinessState,
+          supportLevelCandidate: coursePack.supportLevelCandidate,
+          supportLevelFinal: coursePack.supportLevelFinal,
+          isActive: coursePack.isActive,
+          activeConfirmationSnapshotId: coursePack.activeConfirmationSnapshotId,
+          documentCount: coursePack.documentCount,
+          confirmedUnitCount: coursePack.confirmedUnitCount,
+          confirmedConceptCount: coursePack.confirmedConceptCount,
+          unsupportedTopicCount: coursePack.unsupportedTopicCount,
+          createdAt: coursePack.createdAt.toISOString(),
+          updatedAt: coursePack.updatedAt.toISOString(),
+          confirmedAt: coursePack.confirmedAt?.toISOString() ?? null,
+          activatedAt: coursePack.activatedAt?.toISOString() ?? null,
+          documents: coursePack.sourceDocuments.map((document) => ({
+            documentId: document.id,
+            originalFilename: document.originalFilename,
+            validationStatus: document.validationStatus,
+            parseStatus: document.parseStatus,
+            suggestedRole: document.suggestedRole,
+            confirmedRole: document.confirmedRole,
+            roleConfidenceScore: document.roleConfidenceScore,
+            parseConfidenceScore: document.parseConfidenceScore,
+            warningCodes: document.warningCodes,
+            blockingIssueCode: document.blockingIssueCode,
+            uploadedAt: document.uploadedAt.toISOString(),
+          })),
+          latestExtraction: latestExtraction
+            ? {
+                extractionSnapshotId: latestExtraction.id,
+                coverageStatus: latestExtraction.coverageStatus,
+                averageConfidenceScore: latestExtraction.averageConfidenceScore,
+                lowConfidenceItemCount: latestExtraction.lowConfidenceItemCount,
+                warningCodes: latestExtraction.warningCodes,
+                unitCount: latestExtraction.units.length,
+                conceptCount: latestExtraction.concepts.length,
+                dependencyCount: latestExtraction.dependencyCandidates.length,
+                themeCount: latestExtraction.recurringThemes.length,
+                unsupportedTopicCount: latestExtraction.unsupportedTopics.length,
+                generatedAt: latestExtraction.generatedAt.toISOString(),
+              }
+            : null,
+          supportLevelAssessment: latestExtraction?.supportLevelAssessment
+            ? {
+                supportLevelAssessmentId:
+                  latestExtraction.supportLevelAssessment.id,
+                parseIntegrityScore:
+                  latestExtraction.supportLevelAssessment.parseIntegrityScore,
+                structureConfidenceScore:
+                  latestExtraction.supportLevelAssessment.structureConfidenceScore,
+                blueprintConfidenceScore:
+                  latestExtraction.supportLevelAssessment.blueprintConfidenceScore,
+                packCompletenessScore:
+                  latestExtraction.supportLevelAssessment.packCompletenessScore,
+                coachableCoverageScore:
+                  latestExtraction.supportLevelAssessment.coachableCoverageScore,
+                evaluationReliabilityScore:
+                  latestExtraction.supportLevelAssessment
+                    .evaluationReliabilityScore,
+                candidateSupportLevel:
+                  latestExtraction.supportLevelAssessment.candidateSupportLevel,
+              }
+            : null,
+          latestConfirmation: latestConfirmation
+            ? {
+                confirmationSnapshotId: latestConfirmation.id,
+                status: latestConfirmation.status,
+                editedItemCount: latestConfirmation.editedItemCount,
+                mergeActionCount: latestConfirmation.mergeActionCount,
+                lowConfidenceAcknowledged:
+                  latestConfirmation.lowConfidenceAcknowledged,
+                lowConfidenceIncludedCount:
+                  latestConfirmation.lowConfidenceIncludedCount,
+                confirmedUnitCount: latestConfirmation.units.length,
+                confirmedConceptCount: latestConfirmation.concepts.length,
+                confirmedAt: latestConfirmation.confirmedAt.toISOString(),
+                activatedAt:
+                  latestConfirmation.activatedAt?.toISOString() ?? null,
+              }
+            : null,
+          activation: {
+            isActive: coursePack.isActive,
+            supportLevelFinal: coursePack.supportLevelFinal,
+            activatedAt: coursePack.activatedAt?.toISOString() ?? null,
+            activeContext: this.mapActiveCourseContextSummary(latestActiveContext),
+          },
+          compilation: latestCompiledCoachPack
+            ? {
+                compiledCoachPackId: latestCompiledCoachPack.id,
+                compilationStatus: latestCompiledCoachPack.compilationStatus,
+                supportLevel: latestCompiledCoachPack.supportLevel,
+                focusNormalizedConceptId:
+                  latestCompiledCoachPack.focusCompiledConceptId,
+                focusNormalizedConceptLabel:
+                  latestCompiledCoachPack.focusCompiledConcept?.displayLabel ??
+                  null,
+                focusEngineConceptId:
+                  latestCompiledCoachPack.focusEngineConceptId,
+                normalizedConceptCount: latestCompiledCoachPack.concepts.length,
+                compiledAt: latestCompiledCoachPack.compiledAt.toISOString(),
+              }
+            : null,
+          unsupportedTopics:
+            latestExtraction?.unsupportedTopics.map((topic) => ({
+              unsupportedTopicId: topic.id,
+              label: topic.rawLabel,
+              reasonCode: topic.reasonCode,
+              suggestedHandling: topic.suggestedHandling,
+            })) ?? [],
+        };
+      }),
       recentErrorTags: recentErrorTags.map((attempt) => ({
         primaryErrorTag: attempt.primaryErrorTag,
         createdAt: attempt.createdAt.toISOString(),
@@ -232,7 +432,9 @@ export class AdminService {
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
       include: {
+        activeCoursePack: true,
         focusConcept: true,
+        focusCompiledConcept: true,
         sessionItems: {
           orderBy: { sequenceOrder: "asc" },
         },
@@ -253,6 +455,23 @@ export class AdminService {
       sessionMode: session.sessionMode,
       focusConceptId: session.focusConceptId,
       focusConceptLabel: session.focusConcept?.learnerLabel ?? "",
+      focusCompiledConceptId: session.focusCompiledConceptId,
+      activeCourseContext: session.activeCoursePack
+        ? {
+            coursePackId: session.activeCoursePack.id,
+            courseTitle: session.activeCoursePack.courseTitle,
+            supportLevel:
+              session.activeCoursePack.supportLevelFinal ??
+              session.activeCoursePack.supportLevelCandidate ??
+              CoursePackSupportLevel.planning_review,
+            focusNormalizedConceptId: session.focusCompiledConceptId,
+            focusNormalizedConceptLabel:
+              session.focusCompiledConcept?.displayLabel ?? null,
+            focusEngineConceptId:
+              session.focusCompiledConcept?.engineConceptId ?? null,
+            activatedAt: session.activeCoursePack.activatedAt?.toISOString() ?? null,
+          }
+        : null,
       status: session.status,
       currentIndex: session.currentIndex,
       totalItems: session.totalItems,
@@ -370,5 +589,37 @@ export class AdminService {
       .map((value) => value.getTime());
 
     return new Date(Math.max(...timestamps));
+  }
+
+  private mapActiveCourseContextSummary(
+    activeCourseContext:
+      | {
+          coursePackId: string;
+          courseTitle: string;
+          supportLevel: CoursePackSupportLevel;
+          focusCompiledConceptId: string | null;
+          focusEngineConceptId: string | null;
+          activatedAt: Date;
+          focusCompiledConcept?: {
+            displayLabel: string;
+          } | null;
+        }
+      | null
+      | undefined,
+  ) {
+    if (!activeCourseContext) {
+      return null;
+    }
+
+    return {
+      coursePackId: activeCourseContext.coursePackId,
+      courseTitle: activeCourseContext.courseTitle,
+      supportLevel: activeCourseContext.supportLevel,
+      focusNormalizedConceptId: activeCourseContext.focusCompiledConceptId,
+      focusNormalizedConceptLabel:
+        activeCourseContext.focusCompiledConcept?.displayLabel ?? null,
+      focusEngineConceptId: activeCourseContext.focusEngineConceptId,
+      activatedAt: activeCourseContext.activatedAt.toISOString(),
+    };
   }
 }

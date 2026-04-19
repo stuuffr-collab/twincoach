@@ -9,7 +9,9 @@ import {
 import { Injectable } from "@nestjs/common";
 import { CurriculumService } from "../curriculum/curriculum.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { CoursePackContextService } from "../course-pack/course-pack-context.service";
 import { LearnerProgressService } from "./learner-progress.service";
+import { ActiveCourseContextPayload } from "../course-pack/course-pack.types";
 
 type PlannerDecision = {
   programmingStateCode:
@@ -29,6 +31,8 @@ type PlannerDecision = {
     | "recent_dropoff";
   rationaleText: string;
   nextStepText: string;
+  focusCompiledConceptId: string | null;
+  activeCourseContext: ActiveCourseContextPayload | null;
 };
 
 @Injectable()
@@ -36,6 +40,7 @@ export class ProgrammingPlannerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly curriculumService: CurriculumService,
+    private readonly coursePackContextService: CoursePackContextService,
     private readonly learnerProgressService: LearnerProgressService,
   ) {}
 
@@ -43,6 +48,10 @@ export class ProgrammingPlannerService {
     const snapshot =
       await this.learnerProgressService.getPersonaSnapshot(learnerId);
     const concepts = await this.curriculumService.getProgrammingConcepts();
+    const [activeCourseContext, enginePlanningContext] = await Promise.all([
+      this.coursePackContextService.getActiveContextPayload(learnerId),
+      this.coursePackContextService.getEngineCompatiblePlanningContext(learnerId),
+    ]);
     const recentIncorrectAttempts = await this.prisma.attempt.findMany({
       where: {
         learnerId,
@@ -60,7 +69,21 @@ export class ProgrammingPlannerService {
       take: 4,
     });
 
+    const shouldPreferActiveCoursePackFocus =
+      activeCourseContext != null &&
+      (activeCourseContext.followThrough != null ||
+        activeCourseContext.refreshContext?.firstSessionPending === true ||
+        activeCourseContext.refreshContext == null);
+
+    const fullCoachFocusConcept =
+      shouldPreferActiveCoursePackFocus &&
+      enginePlanningContext?.focusEngineConceptId != null
+        ? concepts.find(
+            (concept) => concept.id === enginePlanningContext.focusEngineConceptId,
+          ) ?? null
+        : null;
     const focusConcept =
+      fullCoachFocusConcept ??
       this.selectFocusConcept({
         concepts,
         snapshot,
@@ -87,9 +110,16 @@ export class ProgrammingPlannerService {
       sessionMode = SessionMode.debugging_drill;
       rationaleCode = "repeated_debugging_errors";
     } else {
-      const focusConceptState = snapshot.conceptStates.find(
-        (state) => state.conceptId === focusConcept.id,
-      );
+      const focusConceptState =
+        enginePlanningContext?.focusCompiledConceptId != null
+          ? enginePlanningContext.conceptStates.find(
+              (state) =>
+                state.compiledCoachConceptId ===
+                enginePlanningContext.focusCompiledConceptId,
+            ) ?? null
+          : snapshot.conceptStates.find(
+              (state) => state.conceptId === focusConcept.id,
+            ) ?? null;
 
       if (focusConceptState?.masteryState === MasteryState.emerging) {
         sessionMode = SessionMode.concept_repair;
@@ -99,9 +129,13 @@ export class ProgrammingPlannerService {
 
     const decision = this.buildDecision({
       focusConceptId: focusConcept.id,
-      focusConceptLabel: focusConcept.learnerLabel,
+      focusConceptLabel:
+        enginePlanningContext?.focusCompiledConcept?.displayLabel ??
+        focusConcept.learnerLabel,
       sessionMode,
       rationaleCode,
+      focusCompiledConceptId: enginePlanningContext?.focusCompiledConceptId ?? null,
+      activeCourseContext,
     });
 
     if (snapshot.persona?.focusConceptId !== decision.focusConceptId) {
@@ -300,6 +334,8 @@ export class ProgrammingPlannerService {
     focusConceptLabel: string;
     sessionMode: SessionMode;
     rationaleCode: PlannerDecision["rationaleCode"];
+    focusCompiledConceptId: string | null;
+    activeCourseContext: ActiveCourseContextPayload | null;
   }): PlannerDecision {
     const sessionModeLabelMap: Record<SessionMode, string> = {
       steady_practice: "تدريب ثابت",
@@ -358,6 +394,8 @@ export class ProgrammingPlannerService {
       rationaleCode: input.rationaleCode,
       rationaleText: rationaleTextMap[input.rationaleCode],
       nextStepText: nextStepTextMap[input.sessionMode],
+      focusCompiledConceptId: input.focusCompiledConceptId,
+      activeCourseContext: input.activeCourseContext,
     };
   }
 
